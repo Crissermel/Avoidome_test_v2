@@ -40,7 +40,9 @@ logs/
 04_bioactivity_threshold_optimization/
 05_model_training/
 
-
+#other files
+PAPYRUS_STANDARD_FEATURE.md
+PROJECT_EXPLANATION.md
 
 # Model training outputs (Step 05) - redundant but explicit
 05_model_training/results_*/
