@@ -33,7 +33,16 @@ htmlcov/
 logs/
 *.log
 
-# Model training outputs (Step 05)
+# Step output directories (intermediate results from workflow steps)
+01_input_preparation/
+02_similarity_search/
+03_esmc_embeddings/
+04_bioactivity_threshold_optimization/
+05_model_training/
+
+
+
+# Model training outputs (Step 05) - redundant but explicit
 05_model_training/results_*/
 05_model_training/models/
 05_model_training/metrics/
@@ -47,8 +56,7 @@ logs/
 05_model_training/bioactivity_table*.csv
 05_model_training/protein_summary_table.csv
 
-# Fingerprint / embedding caches
-03_esmc_embeddings/
+# Fingerprint / embedding caches (already covered by 03_esmc_embeddings/ above)
 **/*_descriptors.pkl
 **/papyrus_morgan_fingerprints.parquet
 **/papyrus_morgan_fingerprints.pkl
