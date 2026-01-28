@@ -1,0 +1,62 @@
+AQSE Input Preparation Summary
+==================================================
+
+Total avoidome proteins: 53
+Proteins with sequences: 53
+Failed to fetch: 0
+
+Proteins with sequences:
+------------------------------
+P05177 (CYP1A2): 516 aa
+P20813 (CYP2B6): 491 aa
+P11712 (CYP2C9): 490 aa
+P33261 (CYP2C19): 490 aa
+P10635 (CYP2D6): 497 aa
+P08684 (CYP3A4): 503 aa
+Q06278 (Aldehyde oxidase): 1338 aa
+P47989 (Xanthine oxidase): 1333 aa
+P21397 (Monoamine oxidase A): 527 aa
+P27338 (Monoamine oxidase B): 520 aa
+P00352 (ALDH1A1): 501 aa
+P07327 (Alcohol dehydrogenase 1A): 375 aa
+P28845 (HSD11B1): 292 aa
+O95154 (Aldehyde reductase): 331 aa
+Q01740 (FMO1): 532 aa
+P35869 (AHR): 848 aa
+Q14994 (CAR): 352 aa
+O75469 (PXR): 434 aa
+P50225 (SULT1A1): 295 aa
+P08263 (GSTA1): 222 aa
+Q15070 (HSA): 435 aa
+P02763 (Alpha1-acid glycoprotein): 201 aa
+Q12809 (HERG (Kv11.1)): 1159 aa
+Q14524 (NaV1.5): 2016 aa
+Q02641 (Calcium L-channel): 598 aa
+Q03135 (CaV 1.2): 178 aa
+P41595 (HTR2B): 481 aa
+P31645 (SERT): 630 aa
+Q9BTC0 (DAT1): 2240 aa
+Q01959 (SLC6A3): 620 aa
+P23975 (NET noradrenaline transporter): 617 aa
+Q9UHE5 (NAT): 227 aa
+P35348 (Adrenergic receptor A1): 466 aa
+P08913 (Adrenergic receptor A2): 465 aa
+P08588 (Adrenergic receptor B1): 477 aa
+P07550 (Adrenergic receptor B2): 413 aa
+Q96F85 (Cannabinoid receptor CB1): 164 aa
+P34972 (Cannabinoid receptor CB2): 360 aa
+P11229 (Muscarinic receptor M1): 460 aa
+P08172 (Muscarinic receptor M2): 466 aa
+P20309 (Muscarinic receptor M3): 590 aa
+Q9GZZ6 (nicotinic nAChR): 450 aa
+Q9UGM1 (nicotinic nAChR): 479 aa
+P36544 (nicotinic nAChR): 502 aa
+P32297 (nicotinic nAChR): 505 aa
+P30532 (nicotinic nAChR): 468 aa
+Q92484 (Phosphodiesterase 3A): 453 aa
+Q06546 (GABA alpha 1): 454 aa
+P35367 (Histamine H1): 487 aa
+Q9Y6L6 (OATP1B1): 691 aa
+Q9NPD5 (OATP1B3): 702 aa
+O94956 (OATP2B1): 709 aa
+P14867 (GABA-A): 456 aa

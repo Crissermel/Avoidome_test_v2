@@ -1,0 +1,40 @@
+# Chemprop Environment: Step 4 - Chemprop Model Training
+#
+# Usage:
+#   conda env create -f chemprop_environment.yml -n chemprop_env
+#   conda activate chemprop_env
+#
+# This environment is specifically for training Chemprop models
+# It should be activated when running Step 4 with model_type: "chemprop"
+
+name: chemprop_env
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python>=3.9,<3.13
+  - pytorch>=2.1.0
+  - pytorch-cuda>=11.8  # Optional, for GPU support
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  - scikit-learn>=1.3.0
+  - pyyaml>=6.0
+  - biopython>=1.81
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+  - requests>=2.31.0
+  - rdkit  # Install from conda-forge
+  - pip
+  - pip:
+    - papyrus-scripts>=1.0.0
+    - lightning>=2.0.0
+    - chemprop>=2.2.0
+    - torchmetrics>=1.3.0
+
+# Note: Chemprop installation can be complex
+# If you encounter issues, try:
+#   1. Install chemprop from source: pip install git+https://github.com/chemprop/chemprop.git
+#   2. Check chemprop documentation for latest installation instructions
+#   3. Ensure PyTorch and CUDA versions are compatible
+

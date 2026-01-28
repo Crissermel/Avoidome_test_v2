@@ -1,0 +1,57 @@
+﻿Name,Name_2,Alternative Names,UniProt ID,ChEMBL_target,,source
+CYP1A2,CYP1A2,"CP1A2_HUMAN, Cytochrome P450 1A2",P05177,CHEMBL3356,,list
+CYP2B6,CYP2B6,"CP2B6_HUMAN, Cytochrome P450 2B6",P20813,CHEMBL4729,,list
+CYP2C9,CYP2C9,"CP2C9_HUMAN, Cytochrome P450 2C9",P11712,CHEMBL3397,,list
+CYP2C19,CYP2C19,"CP2CJ_HUMAN, Cytochrome P450 2C19",P33261,CHEMBL3622,,list
+CYP2D6,CYP2D6,"CP2D6_HUMAN, Cytochrome P450 2D6",P10635,CHEMBL289,,list
+CYP3A4,CYP3A4,"CP3A4_HUMAN, Cytochrome P450 3A4",P08684,CHEMBL2111472,,list
+Aldehyde oxidase,AOX1,"AOXA_HUMAN, Aldehyde oxidase",Q06278,CHEMBL3257,,list
+Xanthine oxidase,XDH,"XDH_HUMAN, Xanthine dehydrogenase/oxidase",P47989,CHEMBL1929,,list
+Monoamine oxidase A,MAOA,"AOFA_HUMAN, Amine oxidase [flavin-containing] A",P21397,CHEMBL1951,,list
+Monoamine oxidase B,MAOB,"AOFB_HUMAN, Amine oxidase [flavin-containing] B",P27338,CHEMBL2039,,list
+ALDH1A1,ALDH1A1,"AL1A1_HUMAN, Aldehyde dehydrogenase 1A1",P00352,CHEMBL3577,,list
+Alcohol dehydrogenase 1A,ADH1A,"ADH1A_HUMAN, Alcohol dehydrogenase 1A",P07327,CHEMBL1970,,list
+HSD11B1,HSD11B1,"DHI1_HUMAN, 11-beta-hydroxysteroid dehydrogenase 1",P28845,CHEMBL4235,,list
+Aldehyde reductase,AKR7A3,"ARK73_HUMAN, Aflatoxin B1 aldehyde reductase member 3",O95154,,no info,list
+FMO1,FMO1,"FMO1_HUMAN, Flavin-containing monooxygenase 1",Q01740,CHEMBL3430872,,list
+AHR,AHR,"AHR_HUMAN, Aryl hydrocarbon receptor",P35869,CHEMBL3201,,list
+CAR,NR1I3,"NR1I3_HUMAN, Nuclear receptor subfamily 1 group I member 3",Q14994,CHEMBL5503,,list
+PXR,NR1I2,"NR1I2_HUMAN, Nuclear receptor subfamily 1 group I member 2",O75469,CHEMBL3401,,list
+SULT1A1,SULT1A1,"ST1A1_HUMAN, Sulfotransferase 1A1",P50225,CHEMBL1743291,,list
+GSTA1,GSTA1,"GSTA1_HUMAN, Glutathione S-transferase A1",P08263,CHEMBL3409,,list
+HSA,OXA1L,"OXA1L_HUMAN, Mitochondrial inner membrane protein OXA1L",Q15070,,no info,list
+Alpha1-acid glycoprotein,ORM1,"A1AG1_HUMAN, Alpha-1-acid glycoprotein 1",P02763,CHEMBL4285,,list
+HERG (Kv11.1),KCNH2,"KCNH2_HUMAN, Potassium voltage-gated channel subfamily H member 2",Q12809,CHEMBL240,,list
+NaV1.5,SCN5A,"SCN5A_HUMAN, Sodium channel protein type 5 subunit alpha",Q14524,CHEMBL1980,,list
+Calcium L-channel,CACNB1,"CACB1_HUMAN, Voltage-dependent L-type calcium channel subunit beta-1",Q02641,CHEMBL3988638,complex,list
+CaV 1.2,CAV1,"CAV1_HUMAN, Caveolin-1",Q03135,CHEMBL3808270,,list
+HTR2B,HTR2B,"5HT2B_HUMAN, 5-hydroxytryptamine receptor 2B",P41595,CHEMBL1833,,list
+SERT,SLC6A4,"SC6A4_HUMAN, Sodium-dependent serotonin transporter",P31645,CHEMBL228,,list
+SLC6A4,SLC6A4,"SLC6A4_HUMAN, Sodium-dependent serotonin transporter",P31645,CHEMBL228,,list
+DAT1,DIDO1,"DIDO1_HUMAN, Death-inducer obliterator 1",Q9BTC0,,no info,list
+SLC6A3,SLC6A3,"SC6A3_HUMAN, Sodium-dependent dopamine transporter",Q01959,CHEMBL238,,list
+NET noradrenaline transporter,SLC6A2,"SC6A2_HUMAN, Sodium-dependent noradrenaline transporter",P23975,CHEMBL222,,list
+NAT,NAT8,"NAT8_HUMAN, N-acetyltransferase 8",Q9UHE5,,no info,list
+SLC6A2,SLC6A2,"SC6A2_HUMAN, Sodium-dependent noradrenaline transporter",P23975,CHEMBL222,,list
+Adrenergic receptor A1,ADRA1A,"ADA1A_HUMAN, Alpha-1A adrenergic receptor",P35348,CHEMBL229,,list
+Adrenergic receptor A2,ADRA2A,"ADA2A_HUMAN, Alpha-2A adrenergic receptor",P08913,CHEMBL1867,,list
+Adrenergic receptor B1,ADRB1,"ADRB1_HUMAN, Beta-1 adrenergic receptor",P08588,CHEMBL213,,list
+Adrenergic receptor B2,ADRB2,"ADRB2_HUMAN, Beta-2 adrenergic receptor",P07550,CHEMBL210,,list
+Cannabinoid receptor CB1,CNRIP1,"CNRP1_HUMAN, CB1 cannabinoid receptor-interacting protein 1",Q96F85,,no info,list
+Cannabinoid receptor CB2,CNR2,"CNR2_HUMAN, Cannabinoid receptor 2",P34972,CHEMBL253,,list
+Muscarinic receptor M1,CHRM1,"ACM1_HUMAN, Muscarinic acetylcholine receptor M1",P11229,CHEMBL216,,list
+Muscarinic receptor M2,CHRM2,"ACM2_HUMAN, Muscarinic acetylcholine receptor M2",P08172,CHEMBL211,,list
+Muscarinic receptor M3,CHRM3,"ACM3_HUMAN, Muscarinic acetylcholine receptor M3",P20309,CHEMBL245,,list
+nicotinic nAChR,CHRNA10,ACH10_HUMAN Neuronal acetylcholine receptor subunit alpha-10,Q9GZZ6,CHEMBL2109238,complex,list
+nicotinic nAChR,CHRNA9,ACHA9_HUMAN Neuronal acetylcholine receptor subunit alpha-9,Q9UGM1,CHEMBL2184,,list
+nicotinic nAChR,CHRNA7,ACHA7_HUMAN Neuronal acetylcholine receptor subunit alpha-7,P36544,CHEMBL2492,,list
+nicotinic nAChR,CHRNA3,ACHA3_HUMAN Neuronal acetylcholine receptor subunit alpha-3,P32297,CHEMBL3068,,list
+nicotinic nAChR,CHRNA5,ACHA5_HUMAN Neuronal acetylcholine receptor subunit alpha-5,P30532,CHEMBL3137272,complex,list
+Phosphodiesterase 3A,SMPDL3A,"ASM3A_HUMAN, Acid sphingomyelinase-like phosphodiesterase 3a",Q92484,,,list
+GABA alpha 1,GABPA,"GABPA_HUMAN, GA-binding protein alpha chain",Q06546,,,list
+Histamine H1,HRH1,"HRH1_HUMAN, Histamine H1 receptor",P35367,CHEMBL231,,list
+hERG,KCNH2,"Eag homolog, Eag-related protein 1, ERG, ERG-1, ERG1, Ether-a-go-go-related gene potassium channel 1, Ether-a-go-go-related protein 1, H-ERG, HERG, hERG-1, hERG1, KCNH2, Potassium voltage-gated channel subfamily H member 2, Voltage-gated inwardly rectifying potassium channel KCNH2, Voltage-gated potassium channel subunit Kv11.1",Q12809,CHEMBL240,,addition
+OATP1B1,SLCO1B1,"Solute carrier organic anion transporter family member 1B1, Liver-specific organic anion transporter 1, LST-1, LST1",Q9Y6L6,CHEMBL1697668,,addition
+OATP1B3,SLCO2B3,"Solute carrier organic anion transporter family member 1B3, Liver-specific organic anion transporter 2, LST-2, LST2",Q9NPD5,CHEMBL1743121,,addition
+OATP2B1,SLCO2B1,"Solute carrier organic anion transporter family member 2B1, KIAA0880",O94956,CHEMBL1743124,,addition
+GABA-A,GABRA1,"Modulation causes sedation, dependence, seizures if imbalanced",P14867,,,Harris_addition

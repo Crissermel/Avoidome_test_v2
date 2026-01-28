@@ -1,0 +1,32 @@
+# ESM-C Environment: Step 3 - ESM-C Descriptor Calculation
+#
+# Usage:
+#   conda env create -f esmc_environment.yml -n esmc
+#   conda activate esmc
+#
+# This environment is specifically for calculating ESM-C embeddings
+# It should be activated when running Step 3 (03_calculate_esmc_embeddings.py)
+
+name: esmc
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - python>=3.9,<3.13
+  - pytorch>=2.0.0
+  - pytorch-cuda>=11.8  # Optional, for GPU support
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  - pyyaml>=6.0
+  - requests>=2.31.0
+  - pip
+  - pip:
+    # ESM-C package - install from appropriate source
+    # Check esmc documentation for latest installation instructions
+    # Example: pip install esmc
+    # Or install from source if needed
+    - esmc
+
+
+

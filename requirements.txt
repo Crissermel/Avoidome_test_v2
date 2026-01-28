@@ -1,0 +1,49 @@
+# AQSE 3-Class Classification Workflow - Python Dependencies
+# 
+# Installation:
+#   pip install -r requirements.txt
+#
+# For chemprop models, additional dependencies are required (see chemprop section below)
+# For ESM-C descriptors (Step 3), use the esmc conda environment (see environment.yml)
+
+# Core Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Configuration
+pyyaml>=6.0
+
+# Bioinformatics
+biopython>=1.81
+
+# Papyrus Database Access
+papyrus-scripts>=1.0.0
+
+# Machine Learning (for Random Forest models)
+scikit-learn>=1.3.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Molecular Descriptors (RDKit)
+rdkit-pypi>=2023.9.0; platform_system != "Windows"
+# For Windows, install RDKit via conda: conda install -c conda-forge rdkit
+
+# HTTP Requests
+requests>=2.31.0
+
+# Optional: Chemprop Dependencies (only needed if using chemprop models)
+# Uncomment the following section if you plan to use chemprop models
+# Note: Chemprop installation can be complex - consider using conda environment (see environment.yml)
+#
+# torch>=2.1.0
+# lightning>=2.0.0
+# chemprop>=2.2.0
+# torchmetrics>=1.3.0
+
+# Optional: ESM-C Descriptors (Step 3)
+# ESM-C is typically installed via conda in a separate environment
+# See environment.yml for esmc environment setup
+# esmc  # Install via conda: conda install -c conda-forge esmc
+

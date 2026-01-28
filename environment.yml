@@ -1,0 +1,22 @@
+# AQSE 3-Class Classification Workflow - Conda Environment Definitions
+
+# Base Environment: Steps 1, 2, and Step 4 (Random Forest only)
+name: aqse_base
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.9,<3.13
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+  - pyyaml>=6.0
+  - biopython>=1.81
+  - scikit-learn>=1.3.0
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+  - requests>=2.31.0
+  - pip
+  - pip:
+    - papyrus-scripts>=1.0.0
+    # RDKit via pip (if conda-forge version doesn't work)
+    # - rdkit-pypi>=2023.9.0

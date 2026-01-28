@@ -1,0 +1,66 @@
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+.env
+.env.*/
+.conda/
+.mamba/
+
+# Testing / tooling caches
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Model training outputs (Step 05)
+05_model_training/results_*/
+05_model_training/models/
+05_model_training/metrics/
+05_model_training/predictions/
+05_model_training/class_distributions/
+05_model_training/individual_reports/
+05_model_training/fingerprints/
+05_model_training/umap_plots/
+05_model_training/logs/
+05_model_training/workflow_results.csv
+05_model_training/bioactivity_table*.csv
+05_model_training/protein_summary_table.csv
+
+# Fingerprint / embedding caches
+03_esmc_embeddings/
+**/*_descriptors.pkl
+**/papyrus_morgan_fingerprints.parquet
+**/papyrus_morgan_fingerprints.pkl
+
+# MLflow (if enabled)
+mlruns/
+
+# Large intermediate data files (keep structure, ignore large binaries)
+**/*.parquet
+**/*.pkl
+**/*.pkl.gz
+
+# Keep CSV files but ignore very large ones if needed
+# Uncomment if CSV files become too large:
+# **/*_with_similar.csv

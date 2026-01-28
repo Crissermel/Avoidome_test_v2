@@ -1,0 +1,24 @@
+{
+  "version": "1.2",
+  "dbname": "papyrus_proteins",
+  "dbtype": "Protein",
+  "db-version": 5,
+  "description": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/02_similarity_search/blast_db/papyrus_proteins.fasta",
+  "number-of-letters": 4423741,
+  "number-of-sequences": 7315,
+  "last-updated": "2026-01-15T16:18:00",
+  "number-of-volumes": 1,
+  "bytes-total": 5280431,
+  "bytes-to-cache": 4489761,
+  "files": [
+    "papyrus_proteins.pdb",
+    "papyrus_proteins.phr",
+    "papyrus_proteins.pin",
+    "papyrus_proteins.pog",
+    "papyrus_proteins.pos",
+    "papyrus_proteins.pot",
+    "papyrus_proteins.psq",
+    "papyrus_proteins.ptf",
+    "papyrus_proteins.pto"
+  ]
+}

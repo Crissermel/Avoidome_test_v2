@@ -1,0 +1,54 @@
+name2_entry,QSAR_success,expansion (AQSE),uniprot_id,protein_family,protein_family_specific,cutoff_high,cutoff_medium
+ADH1A,no,,P07327,Non-IDG Family Targets,Enzyme,6,5
+ADRA1A,yes,yes,P35348,GPCR,,7,6
+ADRA2A,yes,yes,P08913,GPCR,,7,6
+ADRB1,yes,yes,P08588,GPCR,,7,6
+ADRB2,yes,yes,P07550,GPCR,,7,6
+AHR,no,,P35869,Nuclear receptor,,7,6
+AKR7A3,no,,O95154,Non-IDG Family Targets,,6,5
+ALDH1A1,yes,yes,P00352,Non-IDG Family Targets,,6,5
+AOX1,no,,Q06278,Non-IDG Family Targets,,6,5
+CACNB1,no,,Q02641,Ion channel,,5,4
+CAV1,no,,Q03135,Non-IDG Family Targets,Structural,6,5
+CHRM1,yes,yes,P11229,GPCR,,7,6
+CHRM2,yes,yes,P08172,GPCR,,7,6
+CHRM3,yes,yes,P20309,GPCR,,7,6
+CHRNA10,no,,Q9GZZ6,Ion channel,,5,4
+CHRNA3,no,,P32297,Ion channel,,5,4
+CHRNA5,no,,P30532,Ion channel,,5,4
+CHRNA7,yes,yes,P36544,Ion channel,,5,4
+CHRNA9,no,,Q9UGM1,Ion channel,,5,4
+CNR2,yes,yes,P34972,GPCR,,7,6
+CNRIP1,no,,Q96F85,Non-IDG Family Targets,Enzyme,6,5
+CYP1A2,yes,yes,P05177,Non-IDG Family Targets,Enzyme,6,5
+CYP2B6,yes,yes,P20813,Non-IDG Family Targets,Enzyme,6,5
+CYP2C19,yes,yes,P33261,Non-IDG Family Targets,Enzyme,6,5
+CYP2C9,yes,yes,P11712,Non-IDG Family Targets,Enzyme,6,5
+CYP2D6,yes,yes,P10635,Non-IDG Family Targets,Enzyme,6,5
+CYP3A4,yes,yes,P08684,Non-IDG Family Targets,Enzyme,6,5
+DIDO1,no,,Q9BTC0,Non-IDG Family Targets,Transcription regulator,6,5
+FMO1,no,,Q01740,Non-IDG Family Targets,Enzyme,6,5
+GABPA,no,,Q06546,Non-IDG Family Targets,Transcription factor,6,5
+GSTA1,no,,P08263,Non-IDG Family Targets,Enzyme,6,5
+HRH1,yes,yes,P35367,GPCR,,7,6
+HSD11B1,yes,yes,P28845,Non-IDG Family Targets,Enzyme,6,5
+HTR2B,yes,yes,P41595,GPCR,,7,6
+KCNH2,yes,yes,Q12809,Ion channel,,5,4
+MAOA,yes,yes,P21397,Non-IDG Family Targets,Enzyme,6,5
+MAOB,yes,yes,P27338,Non-IDG Family Targets,Enzyme,6,5
+NAT8,no,,Q9UHE5,Non-IDG Family Targets,Enzyme,6,5
+NR1I2,yes,yes,O75469,Nuclear receptor,,7,6
+NR1I3,yes,yes,Q14994,Nuclear receptor,,7,6
+ORM1,no,,P02763,Non-IDG Family Targets,Plasma,6,5
+OXA1L,no,,Q15070,Non-IDG Family Targets,Membrane protein,6,5
+SCN5A,yes,yes,Q14524,Ion channel,,5,4
+SLC6A2,yes,yes,P23975,Non-IDG Family Targets,Transporter,6,5
+SLC6A3,yes,yes,Q01959,Non-IDG Family Targets,Transporter,6,5
+SLC6A4,yes,yes,P31645,Non-IDG Family Targets,Transporter,6,5
+SLCO1B1,no,,Q9Y6L6,Non-IDG Family Targets,Transporter,6,5
+SLCO2B1,yes,yes,O94956,Non-IDG Family Targets,Transporter,6,5
+SLCO2B3,no,,,Non-IDG Family Targets,Transporter,6,5
+SMPDL3A,,,Q92484,Non-IDG Family Targets,Enzyme,6,5
+SULT1A1,no,,P50225,Non-IDG Family Targets,Enzyme,6,5
+XDH,yes,yes,P47989,Non-IDG Family Targets,Enzyme,6,5
+GABRA1,,,P14867,Ion channel,,5,4

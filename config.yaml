@@ -1,0 +1,59 @@
+# AQSE Configuration
+# All paths are absolute paths for clarity and consistency
+avoidome_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/data/avoidome_prot_list.csv"
+similarity_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/02_similarity_search/similarity_search_summary.csv"
+sequence_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/01_input_preparation/avoidome_sequences.csv"
+activity_thresholds_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/04_bioactivity_threshold_optimization/class_imbalance_summary_optimized.csv"
+
+output_dir: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training"
+papyrus_cache_dir: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/03_esmc_embeddings"
+
+# Proteins to use standard Papyrus dataset (not Papyrus++)
+# List protein names or UniProt IDs of proteins that should use standard Papyrus instead of Papyrus++
+# All other proteins will use Papyrus++ by default
+# Examples: "SLCO1B1" (protein name) or "P59520" (UniProt ID)
+proteins_use_standard_papyrus:
+  - "SLCO1B1"  # Uses standard Papyrus (not ++)
+
+
+# Model type
+model_type: "random_forest"  # Options: "random_forest", "chemprop"
+#model_type: "chemprop"
+
+# RandomForest specific parameters
+rf_n_estimators: 500
+rf_max_depth: null  # null means no limit
+rf_class_weight: "balanced_subsample"
+random_state: 42
+
+# chemprop parameters
+# Chemprop specific parameters
+chemprop_max_epochs: 800  # Increased for imbalanced data - model needs more time to learn minority classes
+n_classes: 3
+chemprop_batch_size: 200  # Increased batch size
+chemprop_val_fraction: 0.2
+
+# Chemprop architecture parameters
+chemprop_max_lr: 0.00025  # Maximum learning rate
+chemprop_init_lr: 0.00005  # Initial learning rate
+chemprop_final_lr: 0.00005  # Final learning rate
+chemprop_warmup_epochs: 5  # Warmup epochs
+chemprop_ffn_num_layers: 5  # Number of feed-forward layers
+chemprop_hidden_size: 1700  # Hidden layer size
+chemprop_dropout: 0.5  # Dropout rate
+chemprop_activation: "LeakyReLU"  # Activation function
+chemprop_aggregation: "norm"  # Aggregation type: "mean" or "norm"
+chemprop_depth: 5  # Message passing depth
+chemprop_bias: true  # Use bias in layers
+
+# MLflow configuration
+mlflow_enabled: false  # Set to false to disable MLflow tracking
+mlflow_tracking_uri: "file:///home/serramelendezcsm/RA/Avoidome/AQSE_v3/mlruns"  # Tracking URI contained within AQSE_v3
+# mlflow_experiment_name: "AQSE_3C_RandomForest"  # Optional: experiment name (auto-generated if not set)
+
+enable_parameter_optimization: true
+optimization_n_trials: 50  # Number of hyperparameter combinations to try
+optimization_strategy: "hybrid"  # "hybrid" or "random"
+optimization_epochs: 50  # Epochs per trial during optimization (shorter for speed). Final model uses chemprop_max_epochs
+
+
