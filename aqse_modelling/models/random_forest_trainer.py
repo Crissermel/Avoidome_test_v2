@@ -49,10 +49,53 @@ class RandomForestTrainer(ModelTrainer):
                 logger.info("Using default 3-class mapping")
             
             # Build X, y from pre-computed features
-            X_train = np.stack(train_df['features'].to_numpy())
-            y_train = train_df['class'].map(class_to_int).to_numpy()
-            X_test = np.stack(test_df['features'].to_numpy())
-            y_true = test_df['class'].map(class_to_int).to_numpy()
+            # Filter out rows with 'unknown' class labels or NaN values
+            train_df_clean = train_df[train_df['class'].isin(class_to_int.keys())].copy()
+            test_df_clean = test_df[test_df['class'].isin(class_to_int.keys())].copy()
+            
+            if len(train_df_clean) == 0:
+                logger.error("No valid training samples after filtering invalid class labels")
+                return {
+                    'status': 'error',
+                    'message': 'No valid training samples after filtering',
+                    'model_type_name': self.get_model_type_name()
+                }
+            if len(test_df_clean) == 0:
+                logger.error("No valid test samples after filtering invalid class labels")
+                return {
+                    'status': 'error',
+                    'message': 'No valid test samples after filtering',
+                    'model_type_name': self.get_model_type_name()
+                }
+            
+            X_train = np.stack(train_df_clean['features'].to_numpy())
+            y_train = train_df_clean['class'].map(class_to_int).to_numpy()
+            X_test = np.stack(test_df_clean['features'].to_numpy())
+            y_true = test_df_clean['class'].map(class_to_int).to_numpy()
+            
+            # Double-check for NaN values (shouldn't happen after filtering, but be safe)
+            train_valid_mask = ~pd.isna(train_df_clean['class'])
+            test_valid_mask = ~pd.isna(test_df_clean['class'])
+            if not train_valid_mask.all() or not test_valid_mask.all():
+                logger.warning(f"Found NaN class labels: train={(~train_valid_mask).sum()}, test={(~test_valid_mask).sum()}")
+                X_train = X_train[train_valid_mask.values]
+                y_train = y_train[train_valid_mask.values]
+                X_test = X_test[test_valid_mask.values]
+                y_true = y_true[test_valid_mask.values]
+                # Filter test DataFrame to match filtered arrays
+                test_df_valid = test_df_clean[test_valid_mask].reset_index(drop=True)
+            else:
+                # No filtering needed, use original
+                test_df_valid = test_df_clean.copy()
+            
+            # Final check for NaN in mapped labels
+            if pd.isna(y_train).any() or pd.isna(y_true).any():
+                logger.error(f"NaN values in mapped labels: train={pd.isna(y_train).sum()}, test={pd.isna(y_true).sum()}")
+                return {
+                    'status': 'error',
+                    'message': 'NaN values in class labels after mapping',
+                    'model_type_name': self.get_model_type_name()
+                }
 
             # Train RandomForest
             rf = RandomForestClassifier(
@@ -82,6 +125,7 @@ class RandomForestTrainer(ModelTrainer):
                 'y_true': y_true,
                 'y_pred': y_pred,
                 'y_prob': y_prob,
+                'test_df_valid': test_df_valid,
                 'model_type_name': self.get_model_type_name(),
                 'feature_dimensions': X_train.shape[1],
                 'n_train_samples': len(X_train),

@@ -738,6 +738,10 @@ class ChempropTrainer(ModelTrainer):
             y_pred = y_pred[:min_len]
             y_prob = y_prob[:min_len]
             
+            # Create filtered test DataFrame aligned with predictions
+            # test_valid_indices tracks which samples from test_df_valid passed molecule creation
+            test_df_final = test_df_valid.iloc[test_valid_indices[:min_len]].reset_index(drop=True)
+            
             # Calculate metrics
             test_accuracy = accuracy_score(y_true, y_pred)
             precision, recall, f1, support = precision_recall_fscore_support(
@@ -766,6 +770,7 @@ class ChempropTrainer(ModelTrainer):
                 'y_true': y_true,
                 'y_pred': y_pred,
                 'y_prob': y_prob,
+                'test_df_valid': test_df_final,
                 'test_accuracy': test_accuracy,
                 'test_precision': precision,
                 'test_recall': recall,

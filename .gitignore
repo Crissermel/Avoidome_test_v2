@@ -41,8 +41,11 @@ logs/
 05_model_training/
 
 #other files
-PAPYRUS_STANDARD_FEATURE.md
-PROJECT_EXPLANATION.md
+#PAPYRUS_STANDARD_FEATURE.md
+#PROJECT_EXPLANATION.md
+
+# Deprecated code (refactored into main script)
+aqse_modelling/workflow/
 
 # Model training outputs (Step 05) - redundant but explicit
 05_model_training/results_*/
