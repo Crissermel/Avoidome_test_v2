@@ -25,7 +25,6 @@ from collections import defaultdict
 from Bio import SeqIO
 from Bio.SeqUtils import seq1
 from Bio.Seq import Seq
-from Bio.Blast.Applications import NcbiblastpCommandline, NcbimakeblastdbCommandline
 from Bio.Blast import NCBIXML
 import requests
 from io import StringIO
@@ -285,17 +284,25 @@ class ProteinSimilaritySearchPapyrus:
             
             # Create BLAST database with parse_seqids to preserve IDs
             logger.info("Building BLAST database...")
-            makeblastdb_cline = NcbimakeblastdbCommandline(
-                dbtype="prot",
-                input_file=str(self.blast_db_fasta),
-                out=str(self.blast_db_path),
-                parse_seqids=True  # Try to preserve sequence IDs
+            result = subprocess.run(
+                [
+                    'makeblastdb',
+                    '-dbtype', 'prot',
+                    '-in', str(self.blast_db_fasta),
+                    '-out', str(self.blast_db_path),
+                    '-parse_seqids'
+                ],
+                capture_output=True,
+                text=True,
+                check=False
             )
             
-            stdout, stderr = makeblastdb_cline()
+            if result.returncode != 0:
+                logger.error(f"BLAST database creation failed: {result.stderr}")
+                return False
             
-            if stderr and "Building a new DB" not in stderr:
-                logger.warning(f"BLAST database creation warnings: {stderr}")
+            if result.stderr and "Building a new DB" not in result.stderr:
+                logger.warning(f"BLAST database creation warnings: {result.stderr}")
             
             logger.info(f"BLAST database created successfully: {self.blast_db_path}")
             return True
@@ -399,20 +406,28 @@ class ProteinSimilaritySearchPapyrus:
             
             try:
                 # Run BLAST
-                blastp_cline = NcbiblastpCommandline(
-                    query=tmp_query_path,
-                    db=str(self.blast_db_path),
-                    out=tmp_output_path,
-                    outfmt=5,  # XML format
-                    evalue=10.0,  # E-value threshold
-                    max_target_seqs=10000,  # Maximum number of hits
-                    num_threads=1
+                result = subprocess.run(
+                    [
+                        'blastp',
+                        '-query', tmp_query_path,
+                        '-db', str(self.blast_db_path),
+                        '-out', tmp_output_path,
+                        '-outfmt', '5',  # XML format
+                        '-evalue', '10.0',  # E-value threshold
+                        '-max_target_seqs', '10000',  # Maximum number of hits
+                        '-num_threads', '1'
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False
                 )
                 
-                stdout, stderr = blastp_cline()
+                if result.returncode != 0:
+                    logger.error(f"BLAST failed for {query_id}: {result.stderr}")
+                    return hits
                 
-                if stderr:
-                    logger.warning(f"BLAST warnings for {query_id}: {stderr}")
+                if result.stderr:
+                    logger.warning(f"BLAST warnings for {query_id}: {result.stderr}")
                 
                 # Parse BLAST results
                 with open(tmp_output_path, 'r') as result_handle:
