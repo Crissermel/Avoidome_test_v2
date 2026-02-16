@@ -2,7 +2,7 @@
 Avoidome data loader.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 from typing import Dict, List
 import logging
@@ -26,18 +26,24 @@ class AvoidomeDataLoader:
         if not filepath:
             raise ValueError("Missing 'avoidome_file' in configuration.")
 
-        df = pd.read_csv(filepath)
+        df = pl.read_csv(filepath)
 
-        # Clean columns
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        df.columns = df.columns.str.strip()
+        # Clean columns - remove Unnamed columns and strip whitespace
+        df = df.select([col for col in df.columns if not col.startswith('Unnamed')])
+        # Rename columns to strip whitespace
+        rename_dict = {col: col.strip() for col in df.columns}
+        df = df.rename(rename_dict)
+        
         expected_cols = ["Name_2", "UniProt ID", "ChEMBL_target"]
-        df = df[expected_cols]
+        df = df.select(expected_cols)
 
-        # Convert empty strings to NaN and drop missing
-        df = df.replace("", np.nan)
+        # Convert empty strings to null and drop missing
+        df = df.with_columns([
+            pl.when(pl.col(col) == "").then(None).otherwise(pl.col(col)).alias(col)
+            for col in ["UniProt ID", "ChEMBL_target"]
+        ])
         before_count = len(df)
-        df = df.dropna(subset=["UniProt ID", "ChEMBL_target"])
+        df = df.drop_nulls(subset=["UniProt ID", "ChEMBL_target"])
         after_count = len(df)
         removed = before_count - after_count
 
@@ -47,7 +53,7 @@ class AvoidomeDataLoader:
             self.logger.info("No proteins removed due to missing identifiers.")
 
         self.logger.info(f"Loaded {after_count} avoidome targets from {filepath}")
-        return df.to_dict(orient="records")
+        return df.to_dicts()
 
 
     def load_avoidome_thresholds(self) -> Dict[str, Dict[str, float]]:
@@ -61,11 +67,11 @@ class AvoidomeDataLoader:
     
         if not filepath:
             raise ValueError("Missing 'similarity_file' in configuration.")
-        df = pd.read_csv(filepath)
+        df = pl.read_csv(filepath)
 
-        # clean column names
-        df.columns = df.columns.str.strip()
-
+        # Clean column names - strip whitespace
+        rename_dict = {col: col.strip() for col in df.columns}
+        df = df.rename(rename_dict)
 
         # Identify ID column
         if "UniProt ID" in df.columns:
@@ -75,8 +81,11 @@ class AvoidomeDataLoader:
         else:
             raise ValueError("No protein ID column found in thresholds file.")
 
-        df = df.set_index(id_col)
-        thresholds = df.to_dict(orient="index")
+        # Convert to dict with id_col as key
+        thresholds = {}
+        for row in df.iter_rows(named=True):
+            protein_id = row[id_col]
+            thresholds[protein_id] = {k: v for k, v in row.items() if k != id_col}
 
         self.logger.info(f"Loaded threshold data for {len(thresholds)} proteins from {filepath}")
         return thresholds

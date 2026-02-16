@@ -13,7 +13,7 @@ Script to create a protein-level summary table with:
 - Total datapoints
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import json
 import logging
@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_activity_thresholds(thresholds_file: str) -> pd.DataFrame:
+def load_activity_thresholds(thresholds_file: str) -> pl.DataFrame:
     """
     Load activity thresholds from CSV file.
     
@@ -41,8 +41,10 @@ def load_activity_thresholds(thresholds_file: str) -> pd.DataFrame:
         DataFrame with threshold information
     """
     logger.info(f"Loading activity thresholds from {thresholds_file}")
-    df = pd.read_csv(thresholds_file)
-    df.columns = df.columns.str.strip()
+    df = pl.read_csv(thresholds_file)
+    # Clean column names - strip whitespace
+    rename_dict = {col: col.strip() for col in df.columns}
+    df = df.rename(rename_dict)
     return df
 
 
@@ -57,12 +59,14 @@ def load_similar_proteins(similarity_file: str) -> Dict[str, List[str]]:
         Dictionary mapping target_id to list of similar protein IDs
     """
     logger.info(f"Loading similar proteins from {similarity_file}")
-    df = pd.read_csv(similarity_file)
-    df.columns = df.columns.str.strip()
+    df = pl.read_csv(similarity_file)
+    # Clean column names - strip whitespace
+    rename_dict = {col: col.strip() for col in df.columns}
+    df = df.rename(rename_dict)
     
     similar_proteins_dict = {}
     
-    for _, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         query_protein = str(row['query_protein']).strip()
         
         if query_protein not in similar_proteins_dict:
@@ -70,7 +74,7 @@ def load_similar_proteins(similarity_file: str) -> Dict[str, List[str]]:
         
         # Parse similar_proteins column
         similar_proteins_str = row.get('similar_proteins', '')
-        if pd.notna(similar_proteins_str) and similar_proteins_str.strip():
+        if similar_proteins_str is not None and similar_proteins_str.strip():
             # Extract UniProt IDs from strings like "P05177 (100.0%), P04799 (75.1%)"
             matches = re.findall(r'([OPQ][0-9A-Z]{5})(?:_WT)?\s*\(', str(similar_proteins_str))
             for protein_id in matches:
@@ -170,7 +174,7 @@ def load_model_metrics(workflow_results_file: str, metrics_dir: Optional[Path] =
     return metrics_dict
 
 
-def count_datapoints(papyrus_df: pd.DataFrame, protein_ids: Set[str]) -> int:
+def count_datapoints(papyrus_df: pl.DataFrame, protein_ids: Set[str]) -> int:
     """
     Count bioactivity datapoints for given proteins.
     
@@ -181,13 +185,13 @@ def count_datapoints(papyrus_df: pd.DataFrame, protein_ids: Set[str]) -> int:
     Returns:
         Number of valid datapoints
     """
-    filtered = papyrus_df[papyrus_df['accession'].isin(protein_ids)]
-    filtered = filtered.dropna(subset=['SMILES', 'pchembl_value_Mean'])
-    filtered = filtered[filtered['SMILES'] != '']
+    filtered = papyrus_df.filter(pl.col('accession').is_in(list(protein_ids)))
+    filtered = filtered.drop_nulls(subset=['SMILES', 'pchembl_value_Mean'])
+    filtered = filtered.filter(pl.col('SMILES') != '')
     return len(filtered)
 
 
-def load_papyrus_data() -> pd.DataFrame:
+def load_papyrus_data() -> pl.DataFrame:
     """
     Load Papyrus dataset.
     
@@ -199,7 +203,8 @@ def load_papyrus_data() -> pd.DataFrame:
     try:
         from papyrus_scripts import PapyrusDataset
         papyrus_data = PapyrusDataset(version='latest', plusplus=True)
-        papyrus_df = papyrus_data.to_dataframe()
+        papyrus_pd_df = papyrus_data.to_dataframe()
+        papyrus_df = pl.from_pandas(papyrus_pd_df)
         logger.info(f"Loaded {len(papyrus_df):,} total activities from Papyrus")
         return papyrus_df
     except Exception as e:
@@ -208,12 +213,12 @@ def load_papyrus_data() -> pd.DataFrame:
 
 
 def create_protein_summary_table(
-    thresholds_df: pd.DataFrame,
+    thresholds_df: pl.DataFrame,
     similar_proteins_dict: Dict[str, List[str]],
     two_class_proteins: Set[str],
-    papyrus_df: pd.DataFrame,
+    papyrus_df: pl.DataFrame,
     metrics_dict: Dict = None
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """
     Create the protein-level summary table.
     
@@ -231,9 +236,9 @@ def create_protein_summary_table(
     
     results = []
     
-    for _, row in thresholds_df.iterrows():
+    for row in thresholds_df.iter_rows(named=True):
         uniprot_id = str(row['uniprot_id']).strip()
-        if pd.isna(uniprot_id) or uniprot_id == '':
+        if uniprot_id is None or uniprot_id == '':
             continue
         
         # Get thresholds
@@ -295,8 +300,8 @@ def create_protein_summary_table(
             'total_datapoints': total_datapoints
         })
     
-    result_df = pd.DataFrame(results)
-    result_df = result_df.sort_values('Accession')
+    result_df = pl.DataFrame(results)
+    result_df = result_df.sort('Accession')
     
     logger.info(f"Created summary for {len(result_df)} proteins")
     return result_df

@@ -2,7 +2,7 @@
 Protein sequence loader.
 """
 
-import pandas as pd
+import polars as pl
 from typing import Dict
 import logging
 
@@ -33,8 +33,10 @@ class ProteinSequenceLoader:
             raise ValueError("Missing 'sequence_file' in config.")
 
         self.logger.info(f"Loading protein sequences from {filepath}")
-        df = pd.read_csv(filepath)
-        df.columns = df.columns.str.strip()
+        df = pl.read_csv(filepath)
+        # Clean column names - strip whitespace
+        rename_dict = {col: col.strip() for col in df.columns}
+        df = df.rename(rename_dict)
 
         required_cols = ["uniprot_id", "protein_name", "sequence", "sequence_length"]
         if not all(col in df.columns for col in required_cols):
@@ -43,10 +45,10 @@ class ProteinSequenceLoader:
         # Build dictionary
         self.protein_sequence = {}
         removed_count = 0
-        for _, row in df.iterrows():
+        for row in df.iter_rows(named=True):
             seq = row["sequence"]
             uid = row["uniprot_id"]
-            if pd.isna(seq) or seq == "" or pd.isna(uid) or uid == "":
+            if seq is None or seq == "" or uid is None or uid == "":
                 removed_count += 1
                 continue
             self.protein_sequence[uid] = seq

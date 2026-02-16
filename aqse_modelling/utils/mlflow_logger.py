@@ -5,7 +5,7 @@ This module provides functions for setting up MLflow tracking and logging
 model artifacts, metrics, and parameters.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -101,8 +101,8 @@ def setup_mlflow(config: Dict[str, Any], model_type: str, logger: Optional[loggi
 def log_to_mlflow(
     model: Any,
     metrics: Dict[str, Any],
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
+    train_df: pl.DataFrame,
+    test_df: pl.DataFrame,
     protein_name: Optional[str],
     uniprot_id: str,
     model_type: str,
@@ -228,7 +228,7 @@ def log_to_mlflow(
         # Create input example from test data for signature inference
         try:
             # Get a sample from test data for input example
-            X_test_sample = np.stack(test_df['features'].to_numpy()[:1]) if len(test_df) > 0 else None
+            X_test_sample = np.stack([test_df['features'][0].to_numpy()]) if len(test_df) > 0 and 'features' in test_df.columns else None
             input_example = X_test_sample if X_test_sample is not None else None
         except Exception:
             input_example = None

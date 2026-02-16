@@ -3,7 +3,7 @@ Abstract base class for model trainers and factory for creating them from config
 """
 
 from abc import ABC, abstractmethod
-import pandas as pd
+import polars as pl
 from typing import Dict, Any, Optional
 
 
@@ -11,7 +11,7 @@ class ModelTrainer(ABC):
     """Abstract base class for model trainers"""
     
     @abstractmethod
-    def train(self, train_df: pd.DataFrame, test_df: pd.DataFrame, 
+    def train(self, train_df: pl.DataFrame, test_df: pl.DataFrame, 
               model_type: str = 'A', protein_name: Optional[str] = None,
               threshold: Optional[str] = None, thresholds: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
         """
