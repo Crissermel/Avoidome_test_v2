@@ -4,6 +4,8 @@
 
 The AQSE 3-Class Classification Workflow trains QSAR models for avoidome proteins using a 3-class activity classification (High/Medium/Low) with similarity-based data expansion. The workflow supports two model architectures: Random Forest and Chemprop.
 
+**Note:** The codebase uses **Polars** as the primary data manipulation library (replacing pandas) for improved performance. Pandas is kept as a dependency only for sklearn compatibility (e.g., `train_test_split`).
+
 ### Output Organization
 
 Outputs are organized into step-specific subdirectories:
@@ -21,6 +23,26 @@ Modular structure organized into:
 - **`aqse_modelling/utils/`**: Utilities (feature extraction, MLflow, data splitting, config loading)
 - **`aqse_modelling/reporting/`**: Model reporting and metrics generation
 
+## Prerequisites
+
+- **Python 3.12** (required for UV workflow)
+- **[UV](https://docs.astral.sh/uv/)** package manager
+- **BLAST+ tools** (for Step 2)
+- **Internet connection** (for UniProt API and Papyrus download)
+
+### Installation
+
+```bash
+# Clone repository
+git clone <repository-url>
+cd AQSE_v3
+
+# Install dependencies with UV
+uv sync
+```
+
+Dependencies are defined in `pyproject.toml` and locked in `uv.lock`. Required packages include: polars, pandas, numpy, Bio (Biopython), papyrus-scripts, scikit-learn, chemprop, matplotlib, seaborn, pyyaml, rdkit, torch, esm, lightning, torchmetrics.
+
 ## Workflow Steps
 
 The workflow consists of 5 sequential steps:
@@ -30,6 +52,33 @@ The workflow consists of 5 sequential steps:
 3. **ESM-C Descriptor Calculation** (`03_calculate_esmc_embeddings.py`) - Computes protein embeddings (optional if cached)
 4. **Bioactivity Threshold Optimization** (`04_bioactivity_threshold_optimization.py`) - Analyzes class imbalances and optimizes activity thresholds
 5. **Model Training** (`05_AQSE_3c_2c_clf_th_op_parameter_optimization.py`) - Trains QSAR models using the refactored modular workflow
+
+---
+
+## Complete Workflow Execution (UV - Recommended)
+
+A single UV environment runs every step (no environment switching required).
+
+```bash
+# One-time setup
+cd AQSE_v3
+uv sync
+
+# Step 1: Input preparation
+uv run python scripts/01_input_preparation.py
+
+# Step 2: Similarity search
+uv run python scripts/02_protein_similarity_search_papyrus_blast.py
+
+# Step 3: ESM-C descriptors (optional, auto-calculated if missing)
+uv run python scripts/03_calculate_esmc_embeddings.py
+
+# Step 4: Bioactivity threshold optimization (optional)
+uv run python scripts/04_bioactivity_threshold_optimization.py
+
+# Step 5: Model training
+uv run python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py --config config.yaml
+```
 
 ---
 
@@ -59,7 +108,7 @@ All outputs are organized in the `01_input_preparation/` directory:
 
 ### Usage
 ```bash
-python scripts/01_input_preparation.py
+uv run python scripts/01_input_preparation.py
 ```
 
 ---
@@ -88,7 +137,7 @@ Performs BLAST-based sequence similarity search against Papyrus database to iden
 
 ### Usage
 ```bash
-python scripts/02_protein_similarity_search_papyrus_blast.py
+uv run python scripts/02_protein_similarity_search_papyrus_blast.py
 ```
 
 ### Requirements
@@ -105,9 +154,6 @@ python scripts/02_protein_similarity_search_papyrus_blast.py
 ### Purpose
 Calculates ESM-C protein embeddings for Model B (PCM models). **Optional** if descriptors are already cached.
 
-### Requirements
-- `esmc` package and `esmc` conda environment
-
 ### Outputs
 Cached in `03_esmc_embeddings/` (or `papyrus_cache_dir` in config.yaml):
 - Format: `{uniprot_id}_descriptors.pkl` (960-dimensional embeddings)
@@ -117,8 +163,7 @@ Cached in `03_esmc_embeddings/` (or `papyrus_cache_dir` in config.yaml):
 Descriptors are calculated automatically during Step 5 if missing. To pre-calculate:
 
 ```bash
-conda activate esmc
-python scripts/03_calculate_esmc_embeddings.py
+uv run python scripts/03_calculate_esmc_embeddings.py
 ```
 
 **Options:**
@@ -152,7 +197,7 @@ Analyzes class imbalances and optimizes activity thresholds for 2-class and 3-cl
 
 ### Usage
 ```bash
-python scripts/04_bioactivity_threshold_optimization.py
+uv run python scripts/04_bioactivity_threshold_optimization.py
 ```
 
 ---
@@ -168,9 +213,6 @@ Trains QSAR classification models using the AQSE approach with two model types:
 `scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py`
 
 Orchestrates the workflow using modular components from `aqse_modelling/`.
-
-### Requirements
-- **micromamba environment**: The `chemprop_env` micromamba environment is required for Step 5 (both Random Forest and Chemprop models)
 
 ### Inputs
 - **config.yaml**: Configuration file with paths, model type, and hyperparameters
@@ -203,8 +245,7 @@ Disable table generation with `generate_summary_tables: false` in config.yaml.
 ### Usage
 
 ```bash
-micromamba activate chemprop_env
-python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py [--config config.yaml]
+uv run python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py [--config config.yaml]
 ```
 
 The `--config` argument is optional; defaults to `config.yaml` in project root.
@@ -234,28 +275,11 @@ proteins_use_standard_papyrus:
 
 ---
 
-## Single Environment (UV) – All Steps
+## Legacy: Conda / Micromamba Workflow (Deprecated)
 
-A single UV environment runs every step (no conda/micromamba switching). Requires [UV](https://docs.astral.sh/uv/) and Python 3.12.
+**Note:** The project now uses UV as the primary package manager. The conda/micromamba workflow is deprecated but kept for reference.
 
-```bash
-# One-time setup
-cd AQSE_v3
-uv sync
-
-# Run any step with the same environment
-uv run python scripts/01_input_preparation.py
-uv run python scripts/02_protein_similarity_search_papyrus_blast.py
-uv run python scripts/03_calculate_esmc_embeddings.py
-uv run python scripts/04_bioactivity_threshold_optimization.py
-uv run python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py --config config.yaml
-```
-
-Dependencies are defined in `pyproject.toml` (base + ESM-C + Chemprop). Conda envs (`environment.yml`, `esmc_environment.yml`, `chemprop_environment.yml`) remain as reference.
-
----
-
-## Complete Workflow Execution (Conda / Micromamba)
+If you need to use conda/micromamba instead of UV:
 
 ```bash
 # Step 1: Input preparation
@@ -278,10 +302,7 @@ micromamba activate chemprop_env
 python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py --config config.yaml
 ```
 
-### Prerequisites
-
-- **Single env (UV):** Python 3.12, [UV](https://docs.astral.sh/uv/) — run `uv sync` in `AQSE_v3`; all packages in `pyproject.toml`.
-- **Conda/Micromamba:** Python 3.9–3.12; packages from `environment.yml`, `esmc_environment.yml`, `chemprop_environment.yml`.
-- Required packages: polars, pandas, numpy, Bio (Biopython), papyrus-scripts, scikit-learn, chemprop (optional), matplotlib, seaborn, pyyaml, rdkit.
-- BLAST+ tools (for Step 2).
-- Internet connection (for UniProt API and Papyrus download).
+**Prerequisites for conda/micromamba:**
+- Python 3.9–3.12
+- Conda or Micromamba installed
+- Environment files: `environment.yml`, `esmc_environment.yml`, `chemprop_environment.yml` (deprecated, not maintained)
