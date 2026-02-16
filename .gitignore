@@ -87,3 +87,7 @@ mlruns/
 # Keep CSV files but ignore very large ones if needed
 # Uncomment if CSV files become too large:
 # **/*_with_similar.csv
+# Conda environment files (deprecated, using uv now)
+environment.yml
+chemprop_environment.yml
+esmc_environment.yml
