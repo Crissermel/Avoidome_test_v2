@@ -282,6 +282,6 @@ python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py --config config
 
 - **Single env (UV):** Python 3.12, [UV](https://docs.astral.sh/uv/) — run `uv sync` in `AQSE_v3`; all packages in `pyproject.toml`.
 - **Conda/Micromamba:** Python 3.9–3.12; packages from `environment.yml`, `esmc_environment.yml`, `chemprop_environment.yml`.
-- Required packages: pandas, numpy, Bio (Biopython), papyrus-scripts, scikit-learn, chemprop (optional), matplotlib, seaborn, pyyaml, rdkit.
+- Required packages: polars, pandas, numpy, Bio (Biopython), papyrus-scripts, scikit-learn, chemprop (optional), matplotlib, seaborn, pyyaml, rdkit.
 - BLAST+ tools (for Step 2).
 - Internet connection (for UniProt API and Papyrus download).
