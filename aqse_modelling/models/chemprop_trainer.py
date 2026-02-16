@@ -16,13 +16,13 @@ from .base import ModelTrainer
 # Chemprop imports (optional)
 try:
     from chemprop import data, models, featurizers, nn, utils
-    from lightning import pytorch as pl
+    from lightning import pytorch as lightning_pl
     CHEMPROP_AVAILABLE = True
 except ImportError as e:
     CHEMPROP_AVAILABLE = False
     logging.warning(f"Chemprop not available: {e}")
     # Create dummy classes to avoid import errors
-    class pl:
+    class lightning_pl:
         class Trainer:
             pass
 
@@ -254,7 +254,7 @@ class ChempropTrainer(ModelTrainer):
             train_df_valid = train_df[train_valid_indices]
             
             # Map class labels and validate
-            y_train_mapped = train_df_valid['class'].map_dict(class_to_int)
+            y_train_mapped = train_df_valid['class'].map_elements(lambda x: class_to_int.get(x))
             # Filter out any NaN values (invalid class labels)
             valid_train_mask = ~y_train_mapped.is_null()
             if not valid_train_mask.all():
@@ -276,7 +276,7 @@ class ChempropTrainer(ModelTrainer):
             test_df_valid = test_df[test_valid_indices]
             
             # Map class labels and validate
-            y_test_mapped = test_df_valid['class'].map_dict(class_to_int)
+            y_test_mapped = test_df_valid['class'].map_elements(lambda x: class_to_int.get(x))
             # Filter out any NaN values (invalid class labels)
             valid_test_mask = ~y_test_mapped.is_null()
             if not valid_test_mask.all():
@@ -632,7 +632,7 @@ class ChempropTrainer(ModelTrainer):
                 self.logger.info("Using CPU for training (GPU disabled or unavailable)")
             
             # Create PyTorch Lightning trainer
-            trainer = pl.Trainer(
+            trainer = lightning_pl.Trainer(
                 max_epochs=self.max_epochs,
                 accelerator='gpu' if use_gpu else 'cpu',
                 devices=1 if use_gpu else 1,  # CPU also needs devices=1 (number of CPU cores to use)
@@ -661,7 +661,7 @@ class ChempropTrainer(ModelTrainer):
                         pass  # Ignore errors during cleanup
                     
                     # Retry with CPU
-                    trainer = pl.Trainer(
+                    trainer = lightning_pl.Trainer(
                         max_epochs=self.max_epochs,
                         accelerator='cpu',
                         devices=1,  # CPU requires devices to be an integer

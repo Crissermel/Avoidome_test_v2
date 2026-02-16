@@ -13,6 +13,7 @@ import logging
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem import rdFingerprintGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,8 @@ class BioactivityDataLoader:
             # Calculate Morgan fingerprints
             fingerprints = {}
             valid_count = 0
+
+            morgan_generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
             
             for i, smiles in enumerate(unique_smiles):
                 if i % 10000 == 0:
@@ -96,8 +99,8 @@ class BioactivityDataLoader:
                 try:
                     mol = Chem.MolFromSmiles(smiles)
                     if mol is not None:
-                        morgan_fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
-                        morgan_array = np.array(morgan_fp, dtype=np.float32)
+                        morgan_fp = morgan_generator.GetFingerprint(mol)
+                        morgan_array = np.array(list(morgan_fp), dtype=np.float32)
                         fingerprints[smiles] = morgan_array
                         valid_count += 1
                 except Exception as e:

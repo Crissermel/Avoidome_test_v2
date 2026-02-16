@@ -160,7 +160,7 @@ class ModelReporter:
         
         try:
             # Calculate distribution
-            class_counts_df = df.group_by('class').agg(pl.count().alias('count')).sort('count', descending=True)
+            class_counts_df = df.group_by('class').agg(pl.len().alias('count')).sort('count', descending=True)
             total = len(df)
             distribution_df = class_counts_df.with_columns((pl.col('count') / total).alias('proportion'))
             
@@ -501,7 +501,7 @@ class ModelReporter:
                 pred_file = self._find_predictions_file(protein, uniprot_id, model_type, threshold)
                 if pred_file and pred_file.exists():
                     pred_df = pl.read_csv(pred_file)
-                    pred_class_counts = pred_df.group_by('predicted_class').agg(pl.count().alias('count'))
+                    pred_class_counts = pred_df.group_by('predicted_class').agg(pl.len().alias('count'))
                     pred_dist_dict = {row['predicted_class']: row['count'] for row in pred_class_counts.iter_rows(named=True)}
                     confidence_mean = pred_df['confidence'].mean() if 'confidence' in pred_df.columns else None
                     confidence_std = pred_df['confidence'].std() if 'confidence' in pred_df.columns else None

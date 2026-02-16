@@ -205,7 +205,7 @@ def analyze_protein_class_distribution(
     )
     
     # Count classes
-    class_counts_df = protein_data.group_by('class').agg(pl.count().alias('count'))
+    class_counts_df = protein_data.group_by('class').agg(pl.len().alias('count'))
     class_counts = {row['class']: row['count'] for row in class_counts_df.iter_rows(named=True)}
     
     # Ensure all classes are present

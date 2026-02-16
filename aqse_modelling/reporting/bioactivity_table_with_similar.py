@@ -346,7 +346,7 @@ def create_bioactivity_table(
         filtered_df_pd = filtered_df.to_pandas()
         filtered_df_pd['activity_type'] = filtered_df_pd.apply(get_activity_type, axis=1)
         filtered_df = pl.from_pandas(filtered_df_pd)
-        activity_type_counts = filtered_df.group_by('activity_type').agg(pl.count().alias('count'))
+        activity_type_counts = filtered_df.group_by('activity_type').agg(pl.len().alias('count'))
         logger.info(f"Activity type distribution: {activity_type_counts.to_dicts()}")
     else:
         logger.warning("Activity type columns not found. Setting all to 'unknown'")
@@ -397,7 +397,7 @@ def create_bioactivity_table(
     # Sort by protein_category (target first), then Accession, then pChembl_value
     sort_order_map = {'target': 0, 'similar': 1, 'unknown': 2}
     result_df = result_df.with_columns(
-        pl.col('protein_category').map_dict(sort_order_map).alias('sort_order')
+        pl.col('protein_category').map_elements(lambda x: sort_order_map.get(x)).alias('sort_order')
     )
     result_df = result_df.sort(['sort_order', 'Accession', 'pChembl_value'], descending=[False, False, True])
     result_df = result_df.drop('sort_order')

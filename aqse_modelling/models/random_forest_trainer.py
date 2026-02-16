@@ -71,9 +71,9 @@ class RandomForestTrainer(ModelTrainer):
             
             # Extract features - polars handles array columns differently
             X_train = np.stack([arr for arr in train_df_clean['features']])
-            y_train = train_df_clean['class'].map_dict(class_to_int).to_numpy()
+            y_train = train_df_clean['class'].map_elements(lambda x: class_to_int.get(x)).to_numpy()
             X_test = np.stack([arr for arr in test_df_clean['features']])
-            y_true = test_df_clean['class'].map_dict(class_to_int).to_numpy()
+            y_true = test_df_clean['class'].map_elements(lambda x: class_to_int.get(x)).to_numpy()
             
             # Double-check for NaN values (shouldn't happen after filtering, but be safe)
             train_valid_mask = ~train_df_clean['class'].is_null()

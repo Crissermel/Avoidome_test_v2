@@ -822,8 +822,8 @@ def main():
                 logger.info(f"  Train: {len(train_df)}, Test: {len(test_df)}")
                 if val_df is not None:
                     logger.info(f"  Validation: {len(val_df)}")
-                train_class_counts = train_df.group_by('class').agg(pl.count().alias('count')).to_dicts()
-                test_class_counts = test_df.group_by('class').agg(pl.count().alias('count')).to_dicts()
+                train_class_counts = train_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                test_class_counts = test_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
                 logger.info(f"  Class distribution - Train: {dict((row['class'], row['count']) for row in train_class_counts)}")
                 logger.info(f"  Class distribution - Test: {dict((row['class'], row['count']) for row in test_class_counts)}")
                 
@@ -1081,8 +1081,8 @@ def main():
                         continue
                     
                     logger.info(f"    Train: {len(train_features)}, Test: {len(test_features)}")
-                    train_class_counts = train_features.group_by('class').agg(pl.count().alias('count')).to_dicts()
-                    test_class_counts = test_features.group_by('class').agg(pl.count().alias('count')).to_dicts()
+                    train_class_counts = train_features.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                    test_class_counts = test_features.group_by('class').agg(pl.len().alias('count')).to_dicts()
                     logger.info(f"    Class distribution - Train: {dict((row['class'], row['count']) for row in train_class_counts)}")
                     logger.info(f"    Class distribution - Test: {dict((row['class'], row['count']) for row in test_class_counts)}")
                     

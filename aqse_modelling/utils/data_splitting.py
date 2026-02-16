@@ -57,7 +57,7 @@ def create_fixed_test_set(
     np.random.seed(random_state)
     
     # Count molecules per doc_id
-    doc_counts = df.group_by(doc_id_column).agg(pl.count().alias('count'))
+    doc_counts = df.group_by(doc_id_column).agg(pl.len().alias('count'))
     logger.info(f"Total unique doc_ids: {len(doc_counts)}")
     eligible_count = doc_counts.filter(pl.col('count') >= min_molecules_per_doc).height
     logger.info(f"doc_ids with >= {min_molecules_per_doc} molecules: {eligible_count}")
@@ -102,9 +102,9 @@ def create_fixed_test_set(
     
     # Log class distribution in both sets
     if 'class' in remaining_df.columns:
-        remaining_class_dist = remaining_df.group_by('class').agg(pl.count().alias('count')).to_dicts()
+        remaining_class_dist = remaining_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
         remaining_class_dist = {d['class']: d['count'] for d in remaining_class_dist}
-        test_class_dist = test_df.group_by('class').agg(pl.count().alias('count')).to_dicts()
+        test_class_dist = test_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
         test_class_dist = {d['class']: d['count'] for d in test_class_dist}
         logger.info(f"  Remaining class distribution: {remaining_class_dist}")
         logger.info(f"  Test class distribution: {test_class_dist}")
