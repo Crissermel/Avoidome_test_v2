@@ -477,6 +477,15 @@ def train_model_with_reporting(
 # Helper Functions - Result Saving
 # ============================================================================
 
+def _similar_proteins_to_csv_value(value: Any) -> str:
+    """Convert similar_proteins to a CSV-safe string (Polars expects uniform types)."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, list):
+        return ",".join(str(v) for v in value) if value else "N/A"
+    return str(value)
+
+
 def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model_reporter: ModelReporter, logger: logging.Logger):
     """
     Save workflow results to file and generate summary report
@@ -518,7 +527,7 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                 'has_similar_proteins': has_similar,
                 'n_total_similar_proteins': n_similar,
                 'n_features': model_a.get('n_features', 'N/A'),
-                'similar_proteins': model_a.get('similar_proteins', 'N/A')
+                'similar_proteins': _similar_proteins_to_csv_value(model_a.get('similar_proteins', 'N/A'))
             })
             
             # Add Model B results (one per threshold)
@@ -540,7 +549,7 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                         'has_similar_proteins': has_similar,
                         'n_total_similar_proteins': n_similar,
                         'n_features': threshold_data.get('n_features', 'N/A'),
-                        'similar_proteins': threshold_data.get('similar_proteins', 'N/A')
+                        'similar_proteins': _similar_proteins_to_csv_value(threshold_data.get('similar_proteins', 'N/A'))
                     })
         else:
             # Single model result: protein without similar proteins (Model A only)
@@ -559,7 +568,7 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                 'has_similar_proteins': False,
                 'n_total_similar_proteins': 0,
                 'n_features': result.get('n_features', 'N/A'),
-                'similar_proteins': result.get('similar_proteins', 'N/A')
+                'similar_proteins': _similar_proteins_to_csv_value(result.get('similar_proteins', 'N/A'))
             })
     
     df = pl.DataFrame(csv_data)
