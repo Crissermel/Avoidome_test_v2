@@ -2,15 +2,17 @@
 Protein sequence loader.
 """
 
-import polars as pl
-from typing import Dict
 import logging
+from typing import Dict
+
+import polars as pl
 
 logger = logging.getLogger(__name__)
 
 
 class ProteinSequenceLoader:
     """Handles protein sequence loading"""
+
     def __init__(self, config: dict):
         """
         Args:
@@ -19,7 +21,6 @@ class ProteinSequenceLoader:
         self.config = config
         self.logger = logging.getLogger(self.__class__.__name__)
         self.protein_sequence: Dict[str, str] = {}  # will store the loaded results
-        
 
     def load_sequences(self) -> Dict[str, str]:
         """
@@ -54,7 +55,9 @@ class ProteinSequenceLoader:
             self.protein_sequence[uid] = seq
 
         if removed_count > 0:
-            self.logger.warning(f"Removed {removed_count} entries due to missing UniProt ID or sequence.")
+            self.logger.warning(
+                f"Removed {removed_count} entries due to missing UniProt ID or sequence."
+            )
 
         self.logger.info(f"Loaded {len(self.protein_sequence)} protein sequences")
         return self.protein_sequence
