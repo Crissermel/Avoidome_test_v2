@@ -5,7 +5,7 @@ Bioactivity data loader.
 import logging
 import pickle
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import polars as pl
@@ -13,6 +13,481 @@ from rdkit import Chem
 from rdkit.Chem import rdFingerprintGenerator
 
 logger = logging.getLogger(__name__)
+
+
+def batch_morgan(unique_smiles: Sequence[str], radius=2, fpSize=2048, **kwargs) -> dict:
+    """Generate Morgan fingerprints."""
+    fingerprints = {}
+    morgan_generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+    for i, smiles in enumerate(unique_smiles):
+        if i % 10000 == 0:
+            logger.info(f"Processing SMILES {i + 1}/{len(unique_smiles)}")
+        try:
+            mol = Chem.MolFromSmiles(smiles)
+            if mol is not None:
+                morgan_fp = morgan_generator.GetFingerprint(mol)
+                morgan_array = np.array(list(morgan_fp), dtype=np.float32)
+                fingerprints[smiles] = morgan_array
+        except Exception as e:
+            logger.warning(f"Error processing SMILES {smiles}: {e}")
+            continue
+    return fingerprints
+
+
+def calculate_morgan_fingerprints(
+    papyrus_df, fingerprints_dir, unique_proteins: pl.DataFrame
+) -> Dict[str, Any]:
+    """
+    Step 0: Calculate and save Morgan fingerprints for all compounds in Papyrus database,
+    only for the compounds associated with the unique protein list
+    """
+    logger.info(
+        "Calculating Morgan fingerprints for all Papyrus compounds (filtered by unique proteins)"
+    )
+
+    try:
+        # Use the already-loaded Papyrus dataset
+
+        if papyrus_df.is_empty():
+            logger.error("Papyrus dataset not loaded")
+            return {}
+
+        # Filter for valid SMILES
+        valid_data = papyrus_df.drop_nulls(subset=["SMILES"])
+        valid_data = valid_data.filter(pl.col("SMILES") != "")
+
+        # Filter by unique protein list
+        unique_ids = set(unique_proteins["uniprot_id"].to_list())
+        valid_data = valid_data.filter(pl.col("accession").is_in(list(unique_ids)))
+        logger.info(f"{len(valid_data)} activities after filtering by unique proteins")
+
+        # Get unique SMILES
+        unique_smiles = valid_data["SMILES"].unique().to_list()
+        logger.info(f"Found {len(unique_smiles)} unique SMILES to process")
+
+        # Calculate Morgan fingerprints
+        fingerprints = {}
+        valid_count = 0
+
+        morgan_generator = rdFingerprintGenerator.GetMorganGenerator(
+            radius=2, fpSize=2048
+        )
+
+        for i, smiles in enumerate(unique_smiles):
+            if i % 10000 == 0:
+                logger.info(f"Processing SMILES {i + 1}/{len(unique_smiles)}")
+            try:
+                mol = Chem.MolFromSmiles(smiles)
+                if mol is not None:
+                    morgan_fp = morgan_generator.GetFingerprint(mol)
+                    morgan_array = np.array(list(morgan_fp), dtype=np.float32)
+                    fingerprints[smiles] = morgan_array
+                    valid_count += 1
+            except Exception as e:
+                logger.warning(f"Error processing SMILES {smiles}: {e}")
+                continue
+
+        # Save fingerprints as Parquet for efficiency
+        fingerprints_file = fingerprints_dir / "papyrus_morgan_fingerprints.parquet"
+
+        # Convert dict to DataFrame for Parquet
+        fps_df = pl.DataFrame(
+            {
+                "SMILES": list(fingerprints.keys()),
+                "fingerprint": [
+                    fp.tolist() for fp in fingerprints.values()
+                ],  # Convert numpy array to list
+            }
+        )
+
+        # Save as Parquet with compression
+        fps_df.write_parquet(fingerprints_file, compression="snappy")
+        file_size_mb = fingerprints_file.stat().st_size / (1024 * 1024)
+
+        logger.info(
+            f"Bioactivity dataset completed: {valid_count} valid Morgan fingerprints saved to {fingerprints_file} ({file_size_mb:.2f} MB)"
+        )
+
+        # Get dataset statistics
+        total_activities = len(papyrus_df)
+        filtered_activities = len(valid_data)
+
+        return {
+            "total_activities_in_papyrus": total_activities,
+            "activities_after_protein_filter": filtered_activities,
+            "unique_proteins_in_filter": len(unique_ids),
+            "total_smiles": len(unique_smiles),
+            "valid_fingerprints": valid_count,
+            "fingerprints_file": str(fingerprints_file),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in Step 0: {e}")
+        return {}
+
+
+def load_morgan_fingerprints(
+    fingerprints_dir, unique_proteins: pl.DataFrame | None = None
+) -> Dict[str, np.ndarray]:
+    """Load pre-computed Morgan fingerprints
+
+    Note: The fingerprints were already filtered during calculation to only include
+    SMILES associated with the unique proteins list.
+    """
+    # Try Parquet first, fallback to pickle for backward compatibility
+    fingerprints_file_parquet = fingerprints_dir / "papyrus_morgan_fingerprints.parquet"
+    fingerprints_file_pkl = fingerprints_dir / "papyrus_morgan_fingerprints.pkl"
+
+    try:
+        # Try to load from Parquet
+        if fingerprints_file_parquet.exists():
+            fps_df = pl.read_parquet(fingerprints_file_parquet)
+            # Convert back to dict
+            fingerprints = {
+                row["SMILES"]: np.array(row["fingerprint"], dtype=np.float32)
+                for row in fps_df.iter_rows(named=True)
+            }
+            logger.info(f"Loaded {len(fingerprints)} Morgan fingerprints from Parquet")
+            return fingerprints
+
+        # Fallback to pickle
+        elif fingerprints_file_pkl.exists():
+            with open(fingerprints_file_pkl, "rb") as f:
+                fingerprints = pickle.load(f)
+            logger.info(
+                f"Loaded {len(fingerprints)} Morgan fingerprints from Pickle (legacy format)"
+            )
+            return fingerprints
+        else:
+            logger.error(
+                "Morgan fingerprints file not found (neither .parquet nor .pkl)"
+            )
+            return {}
+
+    except Exception as e:
+        logger.error(f"Error loading Morgan fingerprints: {e}")
+        return {}
+
+
+def calculate_physicochemical_descriptors(smiles: str) -> Dict[str, float]:
+    """
+    Calculate physicochemical descriptors for a single SMILES string.
+
+    Uses the local physicochemical_descriptors module from aqse_modelling.utils.
+    This ensures AQSE_v3 is self-contained with no external dependencies.
+
+    Args:
+        smiles: SMILES string
+
+    Returns:
+        Dictionary of descriptor names and values
+    """
+    try:
+        from aqse_modelling.utils.physicochemical_descriptors import (
+            calculate_physicochemical_descriptors,
+        )
+
+        # Calculate descriptors (without SASA for speed)
+        descriptors = calculate_physicochemical_descriptors(
+            smiles, include_sasa=False, verbose=False
+        )
+
+        return descriptors
+
+    except ImportError as e:
+        logger.error(
+            f"Failed to import physicochemical_descriptors from aqse_modelling.utils: {e}"
+        )
+        logger.error(
+            "This module should be available in AQSE_v3/aqse_modelling/utils/physicochemical_descriptors.py"
+        )
+        return {}
+    except Exception as e:
+        logger.error(f"Error calculating physicochemical descriptors for {smiles}: {e}")
+        return {}
+
+
+def _load_standard_papyrus(
+    _papyrus_standard_loaded: bool,
+    papyrus_standard_df,
+    proteins_use_standard_papyrus: list[str],
+):
+    """Lazy load standard Papyrus dataset if not already loaded"""
+    if _papyrus_standard_loaded:
+        return
+
+    if not proteins_use_standard_papyrus:
+        # No proteins need standard Papyrus, skip loading
+        return
+
+    logger.info("Loading standard Papyrus dataset (not ++)...")
+    logger.info("This may take ~5 minutes on first load")
+    try:
+        from papyrus_scripts import PapyrusDataset
+
+        papyrus_data = PapyrusDataset(version="latest", plusplus=False)
+        papyrus_pd_df = papyrus_data.to_dataframe()
+        _papyrus_standard_loaded = True
+        logger.info(
+            f"Loaded {len(papyrus_standard_df):,} total activities from standard Papyrus"
+        )
+        return pl.from_pandas(papyrus_pd_df)
+    except Exception as e:
+        logger.error(f"Error loading standard Papyrus dataset: {e}")
+        _papyrus_standard_loaded = True  # Mark as loaded to avoid retrying
+        return pl.DataFrame()
+
+
+def _build_protein_name_mapping(
+    avoidome_file, _protein_name_to_uniprot
+) -> dict[str, str] | None:
+    """Build mapping from protein names to UniProt IDs using avoidome loader if available"""
+    _protein_name_to_uniprot = {}
+    try:
+        # Try to get avoidome loader from config or create one
+        from .avoidome_loader import load_avoidome_targets
+
+        targets = load_avoidome_targets(avoidome_file)
+
+        # Build mapping: name -> uniprot_id
+        for target in targets:
+            name = target.get("Name_2", "")
+            uniprot_id = target.get("UniProt ID", "")
+            if name and uniprot_id:
+                _protein_name_to_uniprot[name.upper()] = uniprot_id.upper()
+                # Also map UniProt ID to itself for direct lookups
+                _protein_name_to_uniprot[uniprot_id.upper()] = uniprot_id.upper()
+
+        if _protein_name_to_uniprot:
+            logger.debug(
+                f"Built protein name mapping for {len(_protein_name_to_uniprot)} entries"
+            )
+        return _protein_name_to_uniprot
+    except Exception as e:
+        logger.debug(f"Could not build protein name mapping: {e}")
+
+
+def _should_use_standard_papyrus(
+    _protein_name_to_uniprot: dict[str, str],
+    proteins_use_standard_papyrus: list[str],
+    uniprot_id: str,
+) -> bool:
+    """
+    Check if a protein should use standard Papyrus based on config.
+
+    Args:
+        uniprot_id: UniProt ID or protein name to check
+
+    Returns:
+        True if protein should use standard Papyrus, False for Papyrus++
+    """
+    if not proteins_use_standard_papyrus:
+        return False
+
+    # Build name mapping if not already done # removed in favour of argument passing
+    # _protein_name_to_uniprot = _build_protein_name_mapping(avoidome_file)
+
+    # Normalize input
+    check_id = uniprot_id.upper()
+
+    # Check direct match first
+    for protein_entry in proteins_use_standard_papyrus:
+        if isinstance(protein_entry, str):
+            entry_upper = protein_entry.upper()
+            # Direct match
+            if entry_upper == check_id:
+                return True
+            # Check if entry is a protein name that maps to this UniProt ID
+            if entry_upper in _protein_name_to_uniprot:
+                mapped_id = _protein_name_to_uniprot[entry_upper]
+                if mapped_id == check_id:
+                    return True
+            # Check if check_id is a protein name that maps to entry
+            if check_id in _protein_name_to_uniprot:
+                mapped_id = _protein_name_to_uniprot[check_id]
+                if mapped_id == entry_upper:
+                    return True
+    return False
+
+
+def get_filtered_papyrus(
+    papyrus_df,
+    papyrus_standard_df,
+    _papyrus_standard_loaded,
+    _protein_name_to_uniprot: dict[str, str],
+    proteins_use_standard_papyrus: list[str],
+    uniprot_ids: List[str] | None = None,
+) -> pl.DataFrame:
+    """
+    Get filtered Papyrus data for specific proteins.
+    Automatically selects Papyrus++ or standard Papyrus based on config.
+
+    Args:
+        uniprot_ids: List of UniProt IDs to filter by. If None, returns all data from Papyrus++.
+
+    Returns:
+        Filtered DataFrame from appropriate Papyrus version
+    """
+    if uniprot_ids is None:
+        # Return all data from Papyrus++ (default)
+        if papyrus_df.is_empty():
+            logger.error("Papyrus++ dataset not loaded")
+            return pl.DataFrame()
+        return papyrus_df
+
+    # Check if any of the requested proteins need standard Papyrus
+    needs_standard = any(
+        _should_use_standard_papyrus(
+            _protein_name_to_uniprot, proteins_use_standard_papyrus, uid
+        )
+        for uid in uniprot_ids
+    )
+    needs_plusplus = any(
+        not _should_use_standard_papyrus(
+            _protein_name_to_uniprot, proteins_use_standard_papyrus, uid
+        )
+        for uid in uniprot_ids
+    )
+
+    results = []
+
+    # Load standard Papyrus if needed
+    if needs_standard:
+        _load_standard_papyrus(
+            _papyrus_standard_loaded, papyrus_standard_df, proteins_use_standard_papyrus
+        )
+        standard_ids = [
+            uid
+            for uid in uniprot_ids
+            if _should_use_standard_papyrus(
+                _protein_name_to_uniprot, proteins_use_standard_papyrus, uid
+            )
+        ]
+        if standard_ids and not papyrus_standard_df.is_empty():
+            standard_df = papyrus_standard_df.filter(
+                pl.col("accession").is_in(standard_ids)
+            )
+            if not standard_df.is_empty():
+                logger.info(
+                    f"Using standard Papyrus for {len(standard_ids)} protein(s): {standard_ids}"
+                )
+                results.append(standard_df)
+
+    # Get Papyrus++ data for remaining proteins
+    if needs_plusplus:
+        if papyrus_df.is_empty():
+            logger.error("Papyrus++ dataset not loaded")
+        else:
+            plusplus_ids = [
+                uid
+                for uid in uniprot_ids
+                if not _should_use_standard_papyrus(
+                    _protein_name_to_uniprot, proteins_use_standard_papyrus, uid
+                )
+            ]
+            if plusplus_ids:
+                plusplus_df = papyrus_df.filter(pl.col("accession").is_in(plusplus_ids))
+                if not plusplus_df.is_empty():
+                    if needs_standard:
+                        logger.info(
+                            f"Using Papyrus++ for {len(plusplus_ids)} protein(s): {plusplus_ids}"
+                        )
+                    results.append(plusplus_df)
+
+    # Combine results if both datasets were used
+    if len(results) == 0:
+        return pl.DataFrame()
+    elif len(results) == 1:
+        return results[0]
+    else:
+        # Combine DataFrames from both sources
+        combined_df = pl.concat(results)
+        logger.info(
+            f"Combined data from both Papyrus versions: {len(combined_df)} total activities"
+        )
+        return combined_df
+
+
+def load_esmc_descriptors(esmc_cache_dir: Path, uniprot_id: str) -> np.ndarray | None:
+    """
+    Load ESM-C descriptors from cache for a protein.
+
+    Args:
+        uniprot_id: UniProt ID of the protein
+
+    Returns:
+        ESM-C descriptor array or None if not found
+    """
+    esmc_file = esmc_cache_dir / f"{uniprot_id}_descriptors.pkl"
+
+    if not esmc_file.exists():
+        # Don't log error here - we'll summarize missing accessions at a higher level
+        return None
+
+    try:
+        with open(esmc_file, "rb") as f:
+            esmc_data = pickle.load(f)
+
+        # Extract ESM-C descriptors from the cached data
+        esmc_descriptors = []
+
+        if isinstance(esmc_data, dict):
+            # If it's a dictionary, look for ESM-C descriptors
+            for key, value in esmc_data.items():
+                if key.startswith("esm_dim_"):
+                    esmc_descriptors.append(value)
+
+            if esmc_descriptors:
+                esmc_embedding = np.array(esmc_descriptors)
+            else:
+                # Look for any numeric keys or ESM-related keys
+                numeric_keys = [
+                    k for k in esmc_data.keys() if k.isdigit() or "esm" in k.lower()
+                ]
+                if numeric_keys:
+                    for key in sorted(numeric_keys):
+                        if isinstance(esmc_data[key], (int, float)):
+                            esmc_descriptors.append(esmc_data[key])
+
+                if esmc_descriptors:
+                    esmc_embedding = np.array(esmc_descriptors)
+                else:
+                    # Don't log error here - we'll summarize missing accessions at a higher level
+                    return None
+
+        elif isinstance(esmc_data, np.ndarray):
+            esmc_embedding = esmc_data
+
+        elif isinstance(esmc_data, pl.DataFrame):
+            # Handle DataFrame format
+            esm_cols = [col for col in esmc_data.columns if col.startswith("esm_dim_")]
+
+            if esm_cols:
+                esmc_embedding = esmc_data.select(esm_cols).row(0, named=False)
+                esmc_embedding = np.array(esmc_embedding)
+            else:
+                # Don't log error here - we'll summarize missing accessions at a higher level
+                return None
+        else:
+            # Log only unexpected formats as these are actual errors, not just missing files
+            logger.warning(
+                f"Unexpected ESM-C descriptor format for {uniprot_id}: {type(esmc_data)}"
+            )
+            return None
+
+        # Ensure it's a 1D array
+        if esmc_embedding.ndim > 1:
+            esmc_embedding = esmc_embedding.flatten()
+
+        logger.info(
+            f"Loaded ESM-C descriptors for {uniprot_id}: shape {esmc_embedding.shape}"
+        )
+        return esmc_embedding
+
+    except Exception as e:
+        logger.error(f"Error loading ESM-C descriptors for {uniprot_id}: {e}")
+        return None
 
 
 class BioactivityDataLoader:
