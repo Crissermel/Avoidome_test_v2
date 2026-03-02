@@ -2,7 +2,7 @@
 Hyperparameter optimization for Chemprop models.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import random
 from typing import Dict, Any, Optional
@@ -139,7 +139,7 @@ class ChempropHyperparameterOptimizer:
         
         return params
     
-    def optimize(self, train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.DataFrame,
+    def optimize(self, train_df: pl.DataFrame, val_df: pl.DataFrame, test_df: pl.DataFrame,
                  model_type: str = 'A', protein_name: Optional[str] = None,
                  uniprot_id: Optional[str] = None, thresholds: Optional[Dict[str, Any]] = None,
                  max_epochs: int = 100, optimization_epochs: Optional[int] = None,
@@ -308,7 +308,7 @@ class ChempropHyperparameterOptimizer:
                 self.logger.info(f"{'='*60}")
                 
                 # Combine train and validation sets
-                combined_train_df = pd.concat([train_df, val_df], ignore_index=True)
+                combined_train_df = pl.concat([train_df, val_df])
                 
                 # Create final trainer with best parameters (use full max_epochs for final model)
                 final_trainer = ChempropTrainer(

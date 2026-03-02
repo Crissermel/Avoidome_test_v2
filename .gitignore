@@ -61,6 +61,16 @@ aqse_modelling/workflow/
 05_model_training/bioactivity_table*.csv
 05_model_training/protein_summary_table.csv
 
+
+# UV-specific files
+.venv/
+
+# Keep these (should be committed):
+# pyproject.toml 
+# .python-version (recommended to commit)
+# uv.lock (recommended to commit for reproducibility)
+
+
 # Fingerprint / embedding caches (already covered by 03_esmc_embeddings/ above)
 **/*_descriptors.pkl
 **/papyrus_morgan_fingerprints.parquet
@@ -77,3 +87,7 @@ mlruns/
 # Keep CSV files but ignore very large ones if needed
 # Uncomment if CSV files become too large:
 # **/*_with_similar.csv
+# Conda environment files (deprecated, using uv now)
+environment.yml
+chemprop_environment.yml
+esmc_environment.yml

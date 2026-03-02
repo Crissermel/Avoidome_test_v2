@@ -2,7 +2,7 @@
 Similarity data loader.
 """
 
-import pandas as pd
+import polars as pl
 from typing import Dict, List
 import logging
 
@@ -28,20 +28,22 @@ class SimilarityDataLoader:
             raise ValueError("Missing 'similarity_file' in config.")
 
         self.logger.info(f"Loading similarity results from {filepath}")
-        df = pd.read_csv(filepath)
-        df.columns = df.columns.str.strip()
+        df = pl.read_csv(filepath)
+        # Clean column names - strip whitespace
+        rename_dict = {col: col.strip() for col in df.columns}
+        df = df.rename(rename_dict)
 
         if "query_protein" not in df.columns or "threshold" not in df.columns or "similar_proteins" not in df.columns:
             raise ValueError("Expected columns: 'query_protein', 'threshold', 'similar_proteins'")
 
         # Build nested dictionary
-        for _, row in df.iterrows():
+        for row in df.iter_rows(named=True):
             query = row["query_protein"]
             thresh = row["threshold"]
             similars_str = row.get("similar_proteins", "")
             similars = []
 
-            if pd.notna(similars_str) and similars_str != "":
+            if similars_str is not None and similars_str != "":
                 for p in similars_str.split(","):
                     prot = p.strip().split(" ")[0]  # remove score in parentheses
                     prot = prot.split("_")[0]       # remove any suffix like _WT

@@ -1,0 +1,145 @@
+{
+  "model_info": {
+    "protein": "MAOA",
+    "uniprot_id": "P21397",
+    "model_type": "B",
+    "threshold": "low",
+    "generation_timestamp": "2026-03-02T14:53:50.891518"
+  },
+  "workflow_results": {
+    "protein": "MAOA",
+    "uniprot_id": "P21397",
+    "model_type": "B",
+    "status": "success",
+    "n_samples": "4609",
+    "n_train_samples": "4383",
+    "n_test_samples": "226",
+    "threshold": "low",
+    "n_similar_activities": "3501",
+    "n_target_activities": "1130",
+    "n_similar_proteins": "26",
+    "has_similar_proteins": true,
+    "n_total_similar_proteins": 26,
+    "n_features": "3023",
+    "similar_proteins": "N/A"
+  },
+  "metrics": {
+    "accuracy": 0.6592920353982301,
+    "precision_per_class": [
+      0.7247706422018348,
+      0.5625,
+      0.6756756756756757
+    ],
+    "recall_per_class": [
+      0.7821782178217822,
+      0.5487804878048781,
+      0.5813953488372093
+    ],
+    "f1_per_class": [
+      0.7523809523809524,
+      0.5555555555555556,
+      0.625
+    ],
+    "support_per_class": [
+      101,
+      82,
+      43
+    ],
+    "precision_macro": 0.6543154392925035,
+    "recall_macro": 0.6374513514879565,
+    "f1_macro": 0.6443121693121693,
+    "precision_weighted": 0.656552605824953,
+    "recall_weighted": 0.6592920353982301,
+    "f1_weighted": 0.6567302289647423,
+    "confusion_matrix": [
+      [
+        79,
+        20,
+        2
+      ],
+      [
+        27,
+        45,
+        10
+      ],
+      [
+        3,
+        15,
+        25
+      ]
+    ],
+    "class_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ]
+  },
+  "class_distributions": {
+    "train": [
+      {
+        "class": "High",
+        "count": 1655,
+        "proportion": 0.37759525439196895
+      },
+      {
+        "class": "Medium",
+        "count": 1500,
+        "proportion": 0.34223134839151265
+      },
+      {
+        "class": "Low",
+        "count": 1228,
+        "proportion": 0.28017339721651835
+      }
+    ],
+    "train_summary": {
+      "total_samples": 4383,
+      "n_classes": 3,
+      "class_balance_ratio": 0.7419939577039275,
+      "most_common_class": "High",
+      "most_common_count": 1655,
+      "least_common_class": "Low",
+      "least_common_count": 1228
+    },
+    "test": [
+      {
+        "class": "Low",
+        "count": 101,
+        "proportion": 0.4469026548672566
+      },
+      {
+        "class": "Medium",
+        "count": 82,
+        "proportion": 0.36283185840707965
+      },
+      {
+        "class": "High",
+        "count": 43,
+        "proportion": 0.1902654867256637
+      }
+    ],
+    "test_summary": {
+      "total_samples": 226,
+      "n_classes": 3,
+      "class_balance_ratio": 0.42574257425742573,
+      "most_common_class": "Low",
+      "most_common_count": 101,
+      "least_common_class": "High",
+      "least_common_count": 43
+    }
+  },
+  "predictions_summary": {
+    "total_predictions": 226,
+    "prediction_distribution": {
+      "High": 41,
+      "Medium": 77,
+      "Low": 108
+    },
+    "confidence_stats": {
+      "mean": 0.675283185840708,
+      "std": 0.16658643236878828,
+      "min": 0.362,
+      "max": 0.98
+    }
+  }
+}

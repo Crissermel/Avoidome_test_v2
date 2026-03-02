@@ -1,0 +1,96 @@
+{
+  "model_info": {
+    "protein": "GABRA1",
+    "uniprot_id": "P14867",
+    "model_type": "B",
+    "threshold": "low",
+    "generation_timestamp": "2026-03-02T14:53:51.390267"
+  },
+  "workflow_results": {
+    "protein": "GABRA1",
+    "uniprot_id": "P14867",
+    "model_type": "B",
+    "status": "success",
+    "n_samples": "764",
+    "n_train_samples": "746",
+    "n_test_samples": "18",
+    "threshold": "low",
+    "n_similar_activities": "680",
+    "n_target_activities": "94",
+    "n_similar_proteins": "77",
+    "has_similar_proteins": true,
+    "n_total_similar_proteins": 65,
+    "n_features": "3023",
+    "similar_proteins": "N/A"
+  },
+  "metrics": {
+    "accuracy": 1.0,
+    "precision_per_class": [
+      1.0
+    ],
+    "recall_per_class": [
+      1.0
+    ],
+    "f1_per_class": [
+      1.0
+    ],
+    "support_per_class": [
+      18
+    ],
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "precision_weighted": 1.0,
+    "recall_weighted": 1.0,
+    "f1_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        18
+      ]
+    ],
+    "class_labels": [
+      "Low+Medium",
+      "High"
+    ]
+  },
+  "class_distributions": {
+    "train": [
+      {
+        "class": "High",
+        "count": 728,
+        "proportion": 0.9758713136729222
+      },
+      {
+        "class": "Low+Medium",
+        "count": 18,
+        "proportion": 0.02412868632707775
+      }
+    ],
+    "train_summary": {
+      "total_samples": 746,
+      "n_classes": 2,
+      "class_balance_ratio": 0.024725274725274724,
+      "most_common_class": "High",
+      "most_common_count": 728,
+      "least_common_class": "Low+Medium",
+      "least_common_count": 18
+    },
+    "test": [
+      {
+        "class": "High",
+        "count": 18,
+        "proportion": 1.0
+      }
+    ],
+    "test_summary": {
+      "total_samples": 18,
+      "n_classes": 1,
+      "class_balance_ratio": 1.0,
+      "most_common_class": "High",
+      "most_common_count": 18,
+      "least_common_class": "High",
+      "least_common_count": 18
+    }
+  },
+  "predictions_summary": {}
+}

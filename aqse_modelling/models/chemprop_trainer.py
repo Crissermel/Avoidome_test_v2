@@ -2,7 +2,7 @@
 Chemprop model trainer implementation.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 from typing import Dict, Any, Optional, List, Tuple
 import logging
@@ -16,13 +16,13 @@ from .base import ModelTrainer
 # Chemprop imports (optional)
 try:
     from chemprop import data, models, featurizers, nn, utils
-    from lightning import pytorch as pl
+    from lightning import pytorch as lightning_pl
     CHEMPROP_AVAILABLE = True
 except ImportError as e:
     CHEMPROP_AVAILABLE = False
     logging.warning(f"Chemprop not available: {e}")
     # Create dummy classes to avoid import errors
-    class pl:
+    class lightning_pl:
         class Trainer:
             pass
 
@@ -96,7 +96,7 @@ class ChempropTrainer(ModelTrainer):
     def get_model_type_name(self) -> str:
         return "Chemprop"
     
-    def get_combined_features(self, df: pd.DataFrame, include_esm: bool = False) -> Tuple[np.ndarray, List[int]]:
+    def get_combined_features(self, df: pl.DataFrame, include_esm: bool = False) -> Tuple[np.ndarray, List[int]]:
         """
         Combines features for Chemprop from existing extractors.
         
@@ -123,7 +123,7 @@ class ChempropTrainer(ModelTrainer):
         esm_cache = {}
         
         # Get descriptor keys in sorted order for consistency
-        sample_smiles = df['SMILES'].iloc[0]
+        sample_smiles = df['SMILES'][0]
         sample_desc = self.bioactivity_loader.calculate_physicochemical_descriptors(sample_smiles)
         if not sample_desc:
             raise ValueError(f"Failed to calculate descriptors for sample SMILES: {sample_smiles}")
@@ -131,10 +131,10 @@ class ChempropTrainer(ModelTrainer):
         
         # Pre-load ESM embeddings for all unique accessions (if needed)
         if include_esm:
-            unique_accessions = df['accession'].dropna().unique()
+            unique_accessions = df['accession'].drop_nulls().unique().to_list()
             self.logger.debug(f"Pre-loading ESM embeddings for {len(unique_accessions)} unique accessions...")
             for accession in unique_accessions:
-                if accession and pd.notna(accession):
+                if accession is not None:
                     esm_feats = self.bioactivity_loader.load_esmc_descriptors(accession)
                     if esm_feats is not None:
                         # Ensure 1D array and cache
@@ -144,7 +144,7 @@ class ChempropTrainer(ModelTrainer):
                     else:
                         missing_accessions.add(accession)
         
-        for idx, row in df.iterrows():
+        for idx, row in enumerate(df.iter_rows(named=True)):
             smiles = row['SMILES']
             
             # Get physicochemical descriptors (compute on-the-fly)
@@ -159,7 +159,7 @@ class ChempropTrainer(ModelTrainer):
             if include_esm:
                 # Get ESM embeddings from cache
                 accession = row.get('accession')
-                if not accession or pd.isna(accession):
+                if not accession or accession is None:
                     missing_smiles_count += 1
                     continue
                 
@@ -203,7 +203,7 @@ class ChempropTrainer(ModelTrainer):
         
         return np.array(features_list, dtype=np.float32), valid_indices
     
-    def train(self, train_df: pd.DataFrame, test_df: pd.DataFrame, 
+    def train(self, train_df: pl.DataFrame, test_df: pl.DataFrame, 
               model_type: str = 'A', protein_name: Optional[str] = None,
               threshold: Optional[str] = None, thresholds: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
         """
@@ -251,20 +251,20 @@ class ChempropTrainer(ModelTrainer):
             # Extract features
             self.logger.info("Extracting features for training set...")
             train_features, train_valid_indices = self.get_combined_features(train_df, include_esm=include_esm)
-            train_df_valid = train_df.loc[train_valid_indices].reset_index(drop=True)
+            train_df_valid = train_df[train_valid_indices]
             
             # Map class labels and validate
-            y_train_mapped = train_df_valid['class'].map(class_to_int)
+            y_train_mapped = train_df_valid['class'].map_elements(lambda x: class_to_int.get(x))
             # Filter out any NaN values (invalid class labels)
-            valid_train_mask = ~y_train_mapped.isna()
+            valid_train_mask = ~y_train_mapped.is_null()
             if not valid_train_mask.all():
                 n_invalid = (~valid_train_mask).sum()
                 self.logger.warning(f"Filtering {n_invalid} training samples with invalid class labels")
-                train_df_valid = train_df_valid[valid_train_mask].reset_index(drop=True)
-                train_features = train_features[valid_train_mask.numpy() if hasattr(valid_train_mask, 'numpy') else valid_train_mask.values]
+                train_df_valid = train_df_valid.filter(valid_train_mask)
+                train_features = train_features[valid_train_mask.to_numpy()]
             
-            train_smiles_valid = train_df_valid['SMILES'].tolist()
-            y_train = y_train_mapped[valid_train_mask].values.astype(np.int64)
+            train_smiles_valid = train_df_valid['SMILES'].to_list()
+            y_train = y_train_mapped.filter(valid_train_mask).to_numpy().astype(np.int64)
             
             # Validate label range
             if y_train.max() >= self.n_classes or y_train.min() < 0:
@@ -273,20 +273,20 @@ class ChempropTrainer(ModelTrainer):
             
             self.logger.info("Extracting features for test set...")
             test_features, test_valid_indices = self.get_combined_features(test_df, include_esm=include_esm)
-            test_df_valid = test_df.loc[test_valid_indices].reset_index(drop=True)
+            test_df_valid = test_df[test_valid_indices]
             
             # Map class labels and validate
-            y_test_mapped = test_df_valid['class'].map(class_to_int)
+            y_test_mapped = test_df_valid['class'].map_elements(lambda x: class_to_int.get(x))
             # Filter out any NaN values (invalid class labels)
-            valid_test_mask = ~y_test_mapped.isna()
+            valid_test_mask = ~y_test_mapped.is_null()
             if not valid_test_mask.all():
                 n_invalid = (~valid_test_mask).sum()
                 self.logger.warning(f"Filtering {n_invalid} test samples with invalid class labels")
-                test_df_valid = test_df_valid[valid_test_mask].reset_index(drop=True)
-                test_features = test_features[valid_test_mask.numpy() if hasattr(valid_test_mask, 'numpy') else valid_test_mask.values]
+                test_df_valid = test_df_valid.filter(valid_test_mask)
+                test_features = test_features[valid_test_mask.to_numpy()]
             
-            test_smiles_valid = test_df_valid['SMILES'].tolist()
-            y_test = y_test_mapped[valid_test_mask].values.astype(np.int64)
+            test_smiles_valid = test_df_valid['SMILES'].to_list()
+            y_test = y_test_mapped.filter(valid_test_mask).to_numpy().astype(np.int64)
             
             # Validate label range
             if y_test.max() >= self.n_classes or y_test.min() < 0:
@@ -632,7 +632,7 @@ class ChempropTrainer(ModelTrainer):
                 self.logger.info("Using CPU for training (GPU disabled or unavailable)")
             
             # Create PyTorch Lightning trainer
-            trainer = pl.Trainer(
+            trainer = lightning_pl.Trainer(
                 max_epochs=self.max_epochs,
                 accelerator='gpu' if use_gpu else 'cpu',
                 devices=1 if use_gpu else 1,  # CPU also needs devices=1 (number of CPU cores to use)
@@ -661,7 +661,7 @@ class ChempropTrainer(ModelTrainer):
                         pass  # Ignore errors during cleanup
                     
                     # Retry with CPU
-                    trainer = pl.Trainer(
+                    trainer = lightning_pl.Trainer(
                         max_epochs=self.max_epochs,
                         accelerator='cpu',
                         devices=1,  # CPU requires devices to be an integer
@@ -740,7 +740,7 @@ class ChempropTrainer(ModelTrainer):
             
             # Create filtered test DataFrame aligned with predictions
             # test_valid_indices tracks which samples from test_df_valid passed molecule creation
-            test_df_final = test_df_valid.iloc[test_valid_indices[:min_len]].reset_index(drop=True)
+            test_df_final = test_df_valid[test_valid_indices[:min_len]]
             
             # Calculate metrics
             test_accuracy = accuracy_score(y_true, y_pred)

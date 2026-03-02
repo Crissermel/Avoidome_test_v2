@@ -1,0 +1,20 @@
+Model Information,
+Protein,NR1I2
+UniProt ID,O75469
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:50.999989
+,
+Performance Metrics,
+Accuracy,0.7391304347826086
+F1-Macro,0.7343561538090414
+F1-Weighted,0.7320885801128961
+Precision-Macro,0.7391975308641975
+Recall-Macro,0.7437966622749231
+,
+Data Summary,
+Target Bioactivity Points,6319
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,67
+Expanded Bioactivity Points,5976

@@ -2,7 +2,7 @@
 Unique protein list generator.
 """
 
-import pandas as pd
+import polars as pl
 from typing import List
 from pathlib import Path
 import logging
@@ -29,7 +29,7 @@ class UniqueProteinListGenerator:
         Returns:
             List of UniProt IDs (with _WT suffix removed if present)
         """
-        if pd.isna(similar_proteins_str) or similar_proteins_str == "":
+        if similar_proteins_str is None or similar_proteins_str == "":
             return []
         
         proteins = []
@@ -45,7 +45,7 @@ class UniqueProteinListGenerator:
         
         return proteins
     
-    def generate_unique_protein_list(self) -> pd.DataFrame:
+    def generate_unique_protein_list(self) -> pl.DataFrame:
         """Generate a list of all unique proteins (avoidome + similar)
         
         Returns:
@@ -97,8 +97,8 @@ class UniqueProteinListGenerator:
                         }
         
         # Convert to DataFrame
-        df = pd.DataFrame(list(unique_proteins.values()))
-        df = df.sort_values('uniprot_id')
+        df = pl.DataFrame(list(unique_proteins.values()))
+        df = df.sort('uniprot_id')
         
         self.logger.info(f"Generated unique protein list with {len(df)} proteins")
         self.logger.info(f"  - {len([p for p in unique_proteins.values() if p['source'] == 'avoidome'])} avoidome proteins")
@@ -122,7 +122,7 @@ class UniqueProteinListGenerator:
             output_dir.mkdir(exist_ok=True)
             output_path = output_dir / "protein_list_all_unique.csv"
         
-        df.to_csv(output_path, index=False)
+        df.write_csv(output_path)
         self.logger.info(f"Saved unique protein list to {output_path}")
         
         return str(output_path)

@@ -4,7 +4,7 @@ Model reporting utilities for AQSE workflow.
 This module provides comprehensive model reporting including metrics, predictions, and model saving.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import pickle
 import gzip
@@ -148,7 +148,7 @@ class ModelReporter:
             self.logger.error(f"Failed to save metrics {filename}: {e}")
             return ""
     
-    def save_class_distribution(self, df: pd.DataFrame, protein_name: str, uniprot_id: str, 
+    def save_class_distribution(self, df: pl.DataFrame, protein_name: str, uniprot_id: str, 
                               model_type: str, threshold: Optional[str] = None, split: str = 'all') -> str:
         """Save class distribution analysis"""
         if threshold:
@@ -160,28 +160,24 @@ class ModelReporter:
         
         try:
             # Calculate distribution
-            class_counts = df['class'].value_counts()
-            class_proportions = df['class'].value_counts(normalize=True)
-            
-            distribution_df = pd.DataFrame({
-                'class': class_counts.index,
-                'count': class_counts.values,
-                'proportion': class_proportions.values
-            })
+            class_counts_df = df.group_by('class').agg(pl.len().alias('count')).sort('count', descending=True)
+            total = len(df)
+            distribution_df = class_counts_df.with_columns((pl.col('count') / total).alias('proportion'))
             
             # Add summary statistics
+            class_counts = distribution_df['count']
             summary_stats = {
-                'total_samples': int(len(df)),
-                'n_classes': int(len(class_counts)),
-                'class_balance_ratio': float(class_counts.min() / class_counts.max()) if len(class_counts) > 1 else 1.0,
-                'most_common_class': str(class_counts.index[0]) if len(class_counts) > 0 else '',
-                'most_common_count': int(class_counts.iloc[0]) if len(class_counts) > 0 else 0,
-                'least_common_class': str(class_counts.index[-1]) if len(class_counts) > 0 else '',
-                'least_common_count': int(class_counts.iloc[-1]) if len(class_counts) > 0 else 0
+                'total_samples': int(total),
+                'n_classes': int(len(class_counts_df)),
+                'class_balance_ratio': float(class_counts.min() / class_counts.max()) if len(class_counts_df) > 1 else 1.0,
+                'most_common_class': str(distribution_df['class'][0]) if len(distribution_df) > 0 else '',
+                'most_common_count': int(class_counts[0]) if len(class_counts) > 0 else 0,
+                'least_common_class': str(distribution_df['class'][-1]) if len(distribution_df) > 0 else '',
+                'least_common_count': int(class_counts[-1]) if len(class_counts) > 0 else 0
             }
             
             # Save distribution
-            distribution_df.to_csv(filepath, index=False)
+            distribution_df.write_csv(filepath)
             
             # Save summary stats
             summary_filepath = filepath.with_suffix('.summary.json')
@@ -195,7 +191,7 @@ class ModelReporter:
             self.logger.error(f"Failed to save class distribution {filename}: {e}")
             return ""
     
-    def save_predictions(self, df: pd.DataFrame, y_pred: List[int], protein_name: str, uniprot_id: str, model_type: str, 
+    def save_predictions(self, df: pl.DataFrame, y_pred: List[int], protein_name: str, uniprot_id: str, model_type: str, 
                         y_prob: Optional[np.ndarray] = None, threshold: Optional[str] = None, split: str = 'test', 
                         class_labels: Optional[List[str]] = None) -> str:
         """Save predictions with probabilities"""
@@ -212,9 +208,10 @@ class ModelReporter:
         
         try:
             # Create predictions DataFrame
-            predictions_df = df.copy()
-            predictions_df['predicted_class'] = [class_labels[i] for i in y_pred]
-            predictions_df['predicted_class_int'] = y_pred
+            predictions_df = df.with_columns([
+                pl.Series('predicted_class', [class_labels[i] for i in y_pred]),
+                pl.Series('predicted_class_int', y_pred)
+            ])
             
             # Add probabilities if available (dynamic based on n_classes)
             # Check that y_prob shape matches number of class_labels
@@ -222,20 +219,24 @@ class ModelReporter:
                 n_prob_classes = y_prob.shape[1] if len(y_prob.shape) > 1 else 1
                 n_labels = len(class_labels)
                 
-                # Only add probabilities for classes that exist in y_prob
+                # Build columns for probabilities
+                prob_cols = []
                 for i, label in enumerate(class_labels):
                     prob_col_name = f'prob_{label.lower().replace("+", "_")}'
                     if i < n_prob_classes:
-                        predictions_df[prob_col_name] = y_prob[:, i]
+                        prob_cols.append(pl.Series(prob_col_name, y_prob[:, i]))
                     else:
                         # If model has fewer classes than labels, set to 0
-                        predictions_df[prob_col_name] = 0.0
+                        prob_cols.append(pl.Series(prob_col_name, [0.0] * len(y_pred)))
                 
-                predictions_df['max_prob'] = np.max(y_prob, axis=1)
-                predictions_df['confidence'] = predictions_df['max_prob']
+                max_prob = np.max(y_prob, axis=1)
+                prob_cols.append(pl.Series('max_prob', max_prob))
+                prob_cols.append(pl.Series('confidence', max_prob))
+                
+                predictions_df = predictions_df.with_columns(prob_cols)
             
             # Save predictions
-            predictions_df.to_csv(filepath, index=False)
+            predictions_df.write_csv(filepath)
             
             self.logger.info(f"Predictions saved: {filename}")
             return str(filepath)
@@ -244,7 +245,7 @@ class ModelReporter:
             self.logger.error(f"Failed to save predictions {filename}: {e}")
             return ""
     
-    def generate_comprehensive_report(self, workflow_results: pd.DataFrame) -> str:
+    def generate_comprehensive_report(self, workflow_results: pl.DataFrame) -> str:
         """Generate comprehensive CSV report with all protein information per threshold"""
         comprehensive_filepath = self.results_dir / "comprehensive_protein_report.csv"
         
@@ -252,7 +253,7 @@ class ModelReporter:
             report_data = []
             
             # Process each protein result
-            for _, result in workflow_results.iterrows():
+            for result in workflow_results.iter_rows(named=True):
                 protein = result.get('protein', '')
                 uniprot_id = result.get('uniprot_id', '')
                 model_type = result.get('model_type', '')
@@ -323,9 +324,12 @@ class ModelReporter:
                 
                 # Add sample counts and class distribution
                 # Support both Model A (train_samples/test_samples) and Model B (n_train/n_test)
-                n_train_samples = result.get('train_samples') if pd.notna(result.get('train_samples', float('nan'))) else result.get('n_train', 'N/A')
-                n_test_samples = result.get('test_samples') if pd.notna(result.get('test_samples', float('nan'))) else result.get('n_test', 'N/A')
-                n_target_points = result.get('n_samples') if pd.notna(result.get('n_samples', float('nan'))) else result.get('n_target_activities', 'N/A')
+                train_samples_val = result.get('train_samples')
+                test_samples_val = result.get('test_samples')
+                n_samples_val = result.get('n_samples')
+                n_train_samples = result.get('train_samples') if train_samples_val is not None else result.get('n_train', 'N/A')
+                n_test_samples = result.get('test_samples') if test_samples_val is not None else result.get('n_test', 'N/A')
+                n_target_points = result.get('n_samples') if n_samples_val is not None else result.get('n_target_activities', 'N/A')
 
                 base_info.update({
                     'n_target_bioactivity_datapoints': n_target_points,
@@ -343,9 +347,9 @@ class ModelReporter:
                 class_dist_file = self._find_class_distribution_file(protein, uniprot_id, model_type, threshold, 'test')
                 if class_dist_file and class_dist_file.exists():
                     try:
-                        dist_df = pd.read_csv(class_dist_file)
+                        dist_df = pl.read_csv(class_dist_file)
                         class_dist = {}
-                        for _, row in dist_df.iterrows():
+                        for row in dist_df.iter_rows(named=True):
                             class_dist[row['class']] = f"{row['count']} ({row['proportion']:.3f})"
                         base_info['test_class_distribution'] = str(class_dist)
                     except Exception as e:
@@ -358,9 +362,9 @@ class ModelReporter:
                 train_class_dist_file = self._find_class_distribution_file(protein, uniprot_id, model_type, threshold, 'train')
                 if train_class_dist_file and train_class_dist_file.exists():
                     try:
-                        dist_df = pd.read_csv(train_class_dist_file)
+                        dist_df = pl.read_csv(train_class_dist_file)
                         class_dist = {}
-                        for _, row in dist_df.iterrows():
+                        for row in dist_df.iter_rows(named=True):
                             class_dist[row['class']] = f"{row['count']} ({row['proportion']:.3f})"
                         base_info['train_class_distribution'] = str(class_dist)
                     except Exception as e:
@@ -376,8 +380,8 @@ class ModelReporter:
                 report_data.append(base_info)
             
             # Create DataFrame and save
-            report_df = pd.DataFrame(report_data)
-            report_df.to_csv(comprehensive_filepath, index=False)
+            report_df = pl.DataFrame(report_data)
+            report_df.write_csv(comprehensive_filepath)
             
             self.logger.info(f"Comprehensive report saved: {comprehensive_filepath}")
             return str(comprehensive_filepath)
@@ -440,13 +444,13 @@ class ModelReporter:
         # If no file found, return the first pattern (for error reporting)
         return self.distributions_dir / patterns[0]
     
-    def generate_individual_model_reports(self, workflow_results: pd.DataFrame) -> List[str]:
+    def generate_individual_model_reports(self, workflow_results: pl.DataFrame) -> List[str]:
         """Generate individual CSV and JSON reports for each successful model"""
         individual_reports = []
         
-        successful_models = workflow_results[workflow_results['status'] == 'success']
+        successful_models = workflow_results.filter(pl.col('status') == 'success')
         
-        for _, result in successful_models.iterrows():
+        for result in successful_models.iter_rows(named=True):
             protein = result.get('protein', '')
             uniprot_id = result.get('uniprot_id', '')
             model_type = result.get('model_type', '')
@@ -468,7 +472,7 @@ class ModelReporter:
                         'threshold': threshold if threshold else 'N/A',
                         'generation_timestamp': datetime.now().isoformat()
                     },
-                    'workflow_results': result.to_dict(),
+                    'workflow_results': result,
                     'metrics': {},
                     'class_distributions': {},
                     'predictions_summary': {}
@@ -484,8 +488,8 @@ class ModelReporter:
                 for split in ['train', 'test']:
                     dist_file = self._find_class_distribution_file(protein, uniprot_id, model_type, threshold, split)
                     if dist_file and dist_file.exists():
-                        dist_df = pd.read_csv(dist_file)
-                        model_data['class_distributions'][split] = dist_df.to_dict('records')
+                        dist_df = pl.read_csv(dist_file)
+                        model_data['class_distributions'][split] = dist_df.to_dicts()
                         
                         # Load summary if available
                         summary_file = dist_file.with_suffix('.summary.json')
@@ -496,13 +500,17 @@ class ModelReporter:
                 # Load predictions summary
                 pred_file = self._find_predictions_file(protein, uniprot_id, model_type, threshold)
                 if pred_file and pred_file.exists():
-                    pred_df = pd.read_csv(pred_file)
+                    pred_df = pl.read_csv(pred_file)
+                    pred_class_counts = pred_df.group_by('predicted_class').agg(pl.len().alias('count'))
+                    pred_dist_dict = {row['predicted_class']: row['count'] for row in pred_class_counts.iter_rows(named=True)}
+                    confidence_mean = pred_df['confidence'].mean() if 'confidence' in pred_df.columns else None
+                    confidence_std = pred_df['confidence'].std() if 'confidence' in pred_df.columns else None
                     model_data['predictions_summary'] = {
                         'total_predictions': len(pred_df),
-                        'prediction_distribution': pred_df['predicted_class'].value_counts().to_dict(),
+                        'prediction_distribution': pred_dist_dict,
                         'confidence_stats': {
-                            'mean': pred_df['confidence'].mean() if 'confidence' in pred_df.columns else 'N/A',
-                            'std': pred_df['confidence'].std() if 'confidence' in pred_df.columns else 'N/A',
+                            'mean': float(confidence_mean) if confidence_mean is not None else 'N/A',
+                            'std': float(confidence_std) if confidence_std is not None else 'N/A',
                             'min': pred_df['confidence'].min() if 'confidence' in pred_df.columns else 'N/A',
                             'max': pred_df['confidence'].max() if 'confidence' in pred_df.columns else 'N/A'
                         }
@@ -563,7 +571,7 @@ class ModelReporter:
             filename = f"{protein}_{uniprot_id}_{model_type}_test_predictions.csv"
         return self.predictions_dir / filename
     
-    def generate_summary_report(self, workflow_results: pd.DataFrame) -> str:
+    def generate_summary_report(self, workflow_results: pl.DataFrame) -> str:
         summary_filepath = self.results_dir / "model_summary_report.json"
         
         try:

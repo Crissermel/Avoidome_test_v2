@@ -2,7 +2,7 @@
 Activity thresholds loader.
 """
 
-import pandas as pd
+import polars as pl
 from typing import Dict, Any, List
 import logging
 
@@ -26,40 +26,38 @@ class ActivityThresholdsLoader:
         filepath = self.config.get("activity_thresholds_file")
         if not filepath:
             self.logger.warning("No 'activity_thresholds_file' in configuration")
-            self.thresholds_df = pd.DataFrame()
+            self.thresholds_df = pl.DataFrame()
             return
         
         try:
             self.logger.info(f"Loading optimized activity thresholds from {filepath}")
-            df = pd.read_csv(filepath)
+            df = pl.read_csv(filepath)
             
-            # Clean column names
-            df.columns = df.columns.str.strip()
+            # Clean column names - strip whitespace
+            rename_dict = {col: col.strip() for col in df.columns}
+            df = df.rename(rename_dict)
             
             # Use optimized cutoffs if available, otherwise fall back to original
             if 'optimized_cutoff_high' in df.columns:
-                df['cutoff_high'] = df['optimized_cutoff_high']
+                df = df.with_columns(pl.col('optimized_cutoff_high').alias('cutoff_high'))
                 self.logger.info("Using optimized high cutoffs")
             if 'optimized_cutoff_medium' in df.columns:
-                df['cutoff_medium'] = df['optimized_cutoff_medium']
+                df = df.with_columns(pl.col('optimized_cutoff_medium').alias('cutoff_medium'))
                 self.logger.info("Using optimized medium cutoffs")
             
             # Ensure use_2class column exists (for backward compatibility)
             if 'use_2class' not in df.columns:
                 self.logger.warning("'use_2class' column not found in thresholds file. All proteins will use 3-class classification.")
-                df['use_2class'] = False
+                df = df.with_columns(pl.lit(False).alias('use_2class'))
             else:
                 # Convert use_2class to boolean if it's stored as string
-                df['use_2class'] = df['use_2class'].astype(bool)
+                df = df.with_columns(pl.col('use_2class').cast(pl.Boolean).alias('use_2class'))
             
             # Ensure best_2class_option and best_2class_cutoff columns exist
             if 'best_2class_option' not in df.columns:
-                df['best_2class_option'] = ''
+                df = df.with_columns(pl.lit('').alias('best_2class_option'))
             if 'best_2class_cutoff' not in df.columns:
-                df['best_2class_cutoff'] = ''
-            
-            # Set index for easy lookup
-            df.set_index('uniprot_id', inplace=True, drop=False)
+                df = df.with_columns(pl.lit('').alias('best_2class_cutoff'))
             
             self.thresholds_df = df
             self.logger.info(f"Loaded activity thresholds for {len(df)} proteins")
@@ -69,7 +67,7 @@ class ActivityThresholdsLoader:
             self.logger.info(f"Found {n_2class} proteins recommended for 2-class classification")
         except Exception as e:
             self.logger.error(f"Error loading activity thresholds: {e}")
-            self.thresholds_df = pd.DataFrame()
+            self.thresholds_df = pl.DataFrame()
     
     def _load_2class_proteins(self):
         """
@@ -92,18 +90,18 @@ class ActivityThresholdsLoader:
             Dictionary with 'high' and 'medium' cutoff values, 'n_classes' (2 or 3), 
             and 'class_labels' list, or empty dict if not found
         """
-        if self.thresholds_df.empty:
+        if self.thresholds_df.is_empty():
             return {}
         
         try:
             # Look up by UniProt ID
-            protein = self.thresholds_df[self.thresholds_df['uniprot_id'] == uniprot_id]
+            protein = self.thresholds_df.filter(pl.col('uniprot_id') == uniprot_id)
             
-            if protein.empty:
+            if protein.is_empty():
                 self.logger.warning(f"No thresholds found for {uniprot_id}")
                 return {}
             
-            row = protein.iloc[0]
+            row = protein.row(0, named=True)
             cutoff_high = float(row['cutoff_high'])
             
             # Check if this protein should use 2-class classification (from CSV)
@@ -112,7 +110,7 @@ class ActivityThresholdsLoader:
                 use_2class = bool(row['use_2class'])
             
             # Fallback to hardcoded list if CSV doesn't have use_2class (backward compatibility)
-            if 'use_2class' not in row.index and uniprot_id in self.two_class_proteins:
+            if 'use_2class' not in row and uniprot_id in self.two_class_proteins:
                 use_2class = True
                 self.logger.warning(f"Using hardcoded 2-class list for {uniprot_id} (CSV missing use_2class column)")
             
@@ -169,17 +167,17 @@ class ActivityThresholdsLoader:
             Dictionary with 'high' and 'medium' cutoff values, 'n_classes', and 'class_labels', 
             or empty dict if not found
         """
-        if self.thresholds_df.empty:
+        if self.thresholds_df.is_empty():
             return {}
         
         try:
-            protein = self.thresholds_df[self.thresholds_df['name2_entry'] == protein_name]
+            protein = self.thresholds_df.filter(pl.col('name2_entry') == protein_name)
             
-            if protein.empty:
+            if protein.is_empty():
                 self.logger.warning(f"No thresholds found for {protein_name}")
                 return {}
             
-            row = protein.iloc[0]
+            row = protein.row(0, named=True)
             uniprot_id = row['uniprot_id']
             # Use get_thresholds to get the full dict with n_classes
             return self.get_thresholds(uniprot_id)
@@ -189,6 +187,6 @@ class ActivityThresholdsLoader:
     
     def get_all_proteins(self) -> List[str]:
         """Get list of all proteins with thresholds"""
-        if self.thresholds_df.empty:
+        if self.thresholds_df.is_empty():
             return []
-        return self.thresholds_df['uniprot_id'].dropna().tolist()
+        return self.thresholds_df['uniprot_id'].drop_nulls().to_list()

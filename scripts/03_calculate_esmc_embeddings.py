@@ -27,7 +27,7 @@ Note: Use --force-recalculate-all to fix embeddings with incorrect dimensions
 
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import pickle
 import logging
@@ -46,43 +46,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import ESM-C embedding function
-# NOTE: This requires the external 'esmc' package to be installed.
+# NOTE: This requires the external 'esm' (ESM-C) package to be installed.
 # This is the only external dependency for Step 3 (ESM-C descriptor calculation).
 # If ESM-C descriptors are pre-cached, Step 3 can be skipped entirely.
-
-# Add project root to Python path to find single_esmc_embeddings.py
-script_dir = Path(__file__).parent.absolute()
-project_root = script_dir.parent.absolute()
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-    logger.debug(f"Added project root to Python path: {project_root}")
-
-# Check for environment variable (optional - for custom esmc installation paths)
-esm_module_path = None
-if os.getenv('ESM_MODULE_PATH'):
-    esm_module_path = Path(os.getenv('ESM_MODULE_PATH')).expanduser().resolve()
-    if esm_module_path.exists():
-        sys.path.insert(0, str(esm_module_path))
-        logger.info(f"Using ESM module path from ESM_MODULE_PATH: {esm_module_path}")
-
 try:
-    from single_esmc_embeddings import get_single_esmc_embedding
-    logger.info("Successfully imported get_single_esmc_embedding from single_esmc_embeddings")
+    from aqse_modelling.utils.single_esmc_embeddings import get_single_esmc_embedding
+    logger.info("Successfully imported get_single_esmc_embedding from aqse_modelling.utils.single_esmc_embeddings")
 except ImportError:
-    logger.error("Could not import get_single_esmc_embedding from single_esmc_embeddings")
+    logger.error("Could not import get_single_esmc_embedding from aqse_modelling.utils.single_esmc_embeddings")
     logger.error("")
-    logger.error("REQUIREMENT: The 'esmc' package must be installed to calculate ESM-C embeddings.")
-    logger.error("This is an external dependency. To install:")
-    logger.error("  1. Activate your esmc conda environment: conda activate esmc")
-    logger.error("  2. Ensure the esmc package is installed in that environment")
+    logger.error("REQUIREMENT: The 'esm' package (ESM-C) must be installed to calculate ESM-C embeddings.")
+    logger.error("Install it in your active UV/virtual environment, e.g.: pip install esm")
     logger.error("")
     logger.error("Alternatively, if ESM-C descriptors are already cached in 03_esmc_embeddings/,")
     logger.error("you can skip Step 3 entirely - Step 5 will use the cached descriptors.")
-    logger.error("")
-    logger.error("If you have a custom esmc installation, set ESM_MODULE_PATH environment variable")
-    logger.error("to point to the directory containing single_esmc_embeddings.py")
     raise
-
 
 def load_config(config_path: str) -> dict:
     """Load configuration from YAML file"""
@@ -102,10 +80,10 @@ def get_avoidome_proteins(avoidome_file: str) -> Set[str]:
         Set of UniProt IDs
     """
     logger.info(f"Loading avoidome proteins from {avoidome_file}")
-    df = pd.read_csv(avoidome_file)
+    df = pl.read_csv(avoidome_file)
     
     # Extract UniProt IDs from the 'UniProt ID' column
-    uniprot_ids = set(df['UniProt ID'].dropna().unique())
+    uniprot_ids = set(df['UniProt ID'].drop_nulls().unique().to_list())
     logger.info(f"Found {len(uniprot_ids)} unique avoidome proteins")
     
     return uniprot_ids
@@ -122,16 +100,16 @@ def get_similar_proteins(similarity_file: str) -> Set[str]:
         Set of UniProt IDs (without _WT suffix)
     """
     logger.info(f"Loading similar proteins from {similarity_file}")
-    df = pd.read_csv(similarity_file)
+    df = pl.read_csv(similarity_file)
     
     similar_proteins = set()
     
     # Parse the 'similar_proteins' column which contains entries like:
     # "P05177 (100.0%), P04799 (75.1%), ..." (UniProt IDs without _WT suffix)
     # OR "P05177_WT (100.0%), P04799_WT (75.1%), ..." (with _WT suffix - legacy format)
-    for _, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         similar_proteins_str = row.get('similar_proteins', '')
-        if pd.notna(similar_proteins_str) and similar_proteins_str.strip():
+        if similar_proteins_str is not None and similar_proteins_str.strip():
             # Try to match UniProt ID format: P/Q/O followed by 5 alphanumeric characters
             # Pattern matches: "P05177 (100.0%)" or "P05177_WT (100.0%)"
             # Extract the UniProt ID part (before _WT if present, or before space)
@@ -192,7 +170,7 @@ def get_sequence_from_uniprot(uniprot_id: str, max_retries: int = 3) -> Optional
     return None
 
 
-def get_protein_sequence(uniprot_id: str, sequences_df: pd.DataFrame) -> Optional[str]:
+def get_protein_sequence(uniprot_id: str, sequences_df: pl.DataFrame) -> Optional[str]:
     """
     Get protein sequence from avoidome sequences or UniProt API
     
@@ -204,9 +182,9 @@ def get_protein_sequence(uniprot_id: str, sequences_df: pd.DataFrame) -> Optiona
         Protein sequence string or None if not found
     """
     # First try avoidome sequences
-    avoidome_seq = sequences_df[sequences_df['uniprot_id'] == uniprot_id]
-    if not avoidome_seq.empty:
-        sequence = avoidome_seq.iloc[0]['sequence']
+    avoidome_seq = sequences_df.filter(pl.col('uniprot_id') == uniprot_id)
+    if not avoidome_seq.is_empty():
+        sequence = avoidome_seq['sequence'][0]
         logger.debug(f"Found sequence for {uniprot_id} in avoidome sequences")
         return sequence
     
@@ -330,7 +308,7 @@ def main():
     
     # Load avoidome sequences
     logger.info(f"Loading sequences from {sequence_file}")
-    sequences_df = pd.read_csv(sequence_file)
+    sequences_df = pl.read_csv(sequence_file)
     
     # Process each protein
     successful = 0

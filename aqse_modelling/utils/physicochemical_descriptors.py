@@ -206,30 +206,29 @@ def calculate_batch_descriptors(
 def descriptors_to_dataframe(
     descriptors_list: List[Dict[str, float]],
     smiles_list: Optional[List[str]] = None
-) -> 'pd.DataFrame':
+) -> 'pl.DataFrame':
     """
-    Convert list of descriptor dictionaries to pandas DataFrame.
+    Convert list of descriptor dictionaries to polars DataFrame.
     
     Args:
         descriptors_list (List[Dict[str, float]]): List of descriptor dictionaries
         smiles_list (Optional[List[str]]): Optional SMILES strings for indexing
         
     Returns:
-        pd.DataFrame: DataFrame with descriptors as columns
+        pl.DataFrame: DataFrame with descriptors as columns
     """
     try:
-        import pandas as pd
+        import polars as pl
         
-        df = pd.DataFrame(descriptors_list)
+        df = pl.DataFrame(descriptors_list)
         
         if smiles_list is not None:
-            df['SMILES'] = smiles_list
-            df = df.set_index('SMILES')
+            df = df.with_columns(pl.Series('SMILES', smiles_list))
             
         return df
         
     except ImportError:
-        print("Warning: pandas not available. Returning list of dictionaries.")
+        print("Warning: polars not available. Returning list of dictionaries.")
         return descriptors_list
 
 
@@ -352,7 +351,7 @@ if __name__ == "__main__":
         batch_results = calculate_batch_descriptors(example_smiles, verbose=True)
         print(f"Processed {len(batch_results)} molecules successfully")
         
-        # Convert to DataFrame if pandas is available
+        # Convert to DataFrame if polars is available
         try:
             df = descriptors_to_dataframe(batch_results, example_smiles)
             print("\nDataFrame shape:", df.shape)

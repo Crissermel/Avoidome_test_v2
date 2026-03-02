@@ -1,0 +1,20 @@
+Model Information,
+Protein,CHRM2
+UniProt ID,P08172
+Model Type,B
+Threshold,high
+Generation Time,2026-03-02T14:53:51.301508
+,
+Performance Metrics,
+Accuracy,1.0
+F1-Macro,1.0
+F1-Weighted,1.0
+Precision-Macro,1.0
+Recall-Macro,1.0
+,
+Data Summary,
+Target Bioactivity Points,933
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,4
+Expanded Bioactivity Points,212

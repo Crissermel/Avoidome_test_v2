@@ -1,0 +1,21 @@
+SMILES,accession,pchembl_value_Mean,class,features,predicted_class,predicted_class_int,prob_low,prob_medium,prob_high,max_prob,confidence
+N#Cc1cc(-c2ncc3c(=O)[nH][nH]c3n2)ccc1OCc1ccc(Cl)cc1,P47989,6.92,Medium,[ 0.  0.  0. ... 27.  0.  0.],Medium,1,0.0,0.73,0.27,0.73,0.73
+CC(C)Oc1ccc(-c2cc(C(=O)O)[nH]c(=S)n2)cc1[N+](=O)[O-],P47989,6.54,Medium,[ 0.  1.  0. ... 23.  0.  0.],Medium,1,0.002,0.98,0.018,0.98,0.98
+N#Cc1cc(-c2ncc3c(=O)[nH][nH]c3n2)ccc1OCc1ccc(F)cc1,P47989,6.82,Medium,[ 0.  0.  0. ... 27.  0.  0.],Medium,1,0.0,0.666,0.334,0.666,0.666
+CC(C)COc1ccc(-c2cc(C(=O)O)[nH]c(=S)n2)cc1Br,P47989,6.1,Medium,[ 0.  1.  0. ... 22.  0.  0.],Medium,1,0.0,0.994,0.006,0.994,0.994
+CC(C)CCn1cc(C#N)c2cc(-c3nc(=O)cc[nH]3)ccc21,P47989,6.22,Medium,[ 0.  1.  0. ... 23.  0.  0.],Medium,1,0.0,0.802,0.198,0.802,0.802
+CCCCOc1ccc(-c2cc(C(=O)O)[nH]c(=S)n2)cc1C#N,P47989,6.42,Medium,[ 0.  0.  0. ... 23.  0.  0.],Medium,1,0.002,0.966,0.032,0.966,0.966
+Cc1ccc(COc2ccc(-c3ncc(C(=O)O)cn3)cc2C#N)cc1,P47989,7.1,High,[ 0.  0.  0. ... 26.  0.  0.],Medium,1,0.0,0.896,0.104,0.896,0.896
+CC(C)Oc1ccc(-c2ncc(C(=O)O)cn2)cc1C#N,P47989,7.35,High,[ 0.  1.  0. ... 21.  0.  0.],Medium,1,0.002,0.77,0.228,0.77,0.77
+Cn1cc(C#N)c2cc(NC(=O)c3cc(=O)[nH]cn3)ccc21,P47989,6.19,Medium,[ 0.  0.  0. ... 22.  0.  0.],Medium,1,0.0,0.964,0.036,0.964,0.964
+CC(C)Oc1ccc(-c2ncc3c(=O)[nH][nH]c3n2)cc1C#N,P47989,7.92,High,[ 0.  1.  0. ... 22.  0.  0.],High,2,0.0,0.262,0.738,0.738,0.738
+N#Cc1cc(-c2nccc(C(=O)O)n2)ccc1OCc1ccc(Br)cc1,P47989,7.37,High,[ 0.  0.  0. ... 26.  0.  0.],High,2,0.002,0.238,0.76,0.76,0.76
+N#Cc1cn(CC2CC2)c2ccc(-c3nc(=O)cc[nH]3)cc12,P47989,6.52,Medium,[ 0.  0.  0. ... 22.  0.  1.],Medium,1,0.002,0.758,0.24,0.758,0.758
+CCC(C)Oc1ccc(-c2cc(C(=O)O)[nH]c(=S)n2)cc1[N+](=O)[O-],P47989,6.48,Medium,[ 0.  1.  0. ... 24.  0.  0.],Medium,1,0.002,0.99,0.008,0.99,0.99
+O=C(C=Cc1ccc(O)c2oc(-c3ccc(O)c(O)c3)cc12)NC(Cc1ccc(O)c(O)c1)C(=O)O,P47989,5.12,Low,[ 0.  1.  0. ... 36.  0.  0.],Low,0,0.948,0.048,0.004,0.948,0.948
+COC(=O)C(C)=NC(=O)CCc1ccc(O)c2oc(-c3ccc(O)c(O)c3)cc12,P47989,4.97,Low,[ 0.  0.  0. ... 29.  0.  0.],Low,0,0.892,0.096,0.012,0.892,0.892
+COc1ccc(CC(=NO)c2nc3ccc(OC)cc3o2)cc1,P47989,5.54,Low,[ 0.  0.  0. ... 23.  0.  0.],Medium,1,0.182,0.55,0.268,0.55,0.55
+CC(C)CCOc1ccc(-c2ncc3c(=O)[nH][nH]c3n2)cc1C#N,P47989,7.17,High,[ 0.  1.  0. ... 24.  0.  0.],High,2,0.0,0.25,0.75,0.75,0.75
+CC(C)=CCn1cc(C#N)c2cc(NC(=O)c3cc(=O)[nH]cn3)ccc21,P47989,6.46,Medium,[ 0.  0.  0. ... 26.  0.  0.],Medium,1,0.0,1.0,0.0,1.0,1.0
+CC(C)COc1ccc(-c2ncc(C(=O)O)cn2)cc1C#N,P47989,6.97,Medium,[ 0.  1.  0. ... 22.  0.  0.],Medium,1,0.0,0.702,0.298,0.702,0.702
+N#Cc1cc(-c2ncc(C(=O)O)cn2)ccc1OCc1ccc(Cl)cc1,P47989,6.73,Medium,[ 0.  0.  0. ... 26.  0.  0.],Medium,1,0.0,0.898,0.102,0.898,0.898

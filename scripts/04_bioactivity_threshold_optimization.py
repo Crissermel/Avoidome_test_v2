@@ -18,7 +18,7 @@ The script performs the following analyses:
 
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import logging
 from pathlib import Path
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 # Previously restricted to ALLOWED_PROTEINS, now includes all proteins
 
 
-def load_cutoff_table(cutoff_table_path: str) -> pd.DataFrame:
+def load_cutoff_table(cutoff_table_path: str) -> pl.DataFrame:
     """
     Load the cutoff table with protein thresholds
     
@@ -56,11 +56,11 @@ def load_cutoff_table(cutoff_table_path: str) -> pd.DataFrame:
         DataFrame with protein information and cutoffs
     """
     logger.info(f"Loading cutoff table from {cutoff_table_path}")
-    cutoff_df = pd.read_csv(cutoff_table_path)
+    cutoff_df = pl.read_csv(cutoff_table_path)
     
     # Filter out proteins without uniprot_id
-    cutoff_df = cutoff_df[cutoff_df['uniprot_id'].notna()]
-    cutoff_df = cutoff_df[cutoff_df['uniprot_id'] != '']
+    cutoff_df = cutoff_df.filter(pl.col('uniprot_id').is_not_null())
+    cutoff_df = cutoff_df.filter(pl.col('uniprot_id') != '')
     
     logger.info(f"Loaded {len(cutoff_df)} proteins from cutoff table")
     return cutoff_df
@@ -79,19 +79,19 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
     logger.info(f"Loading similarity summary from {similarity_file_path}")
     
     try:
-        similarity_df = pd.read_csv(similarity_file_path)
+        similarity_df = pl.read_csv(similarity_file_path)
         
         # Dictionary to store similar proteins for each target
         # Key: target uniprot_id, Value: list of similar protein uniprot_ids (including target)
         similar_proteins_dict = {}
         
-        for _, row in similarity_df.iterrows():
+        for row in similarity_df.iter_rows(named=True):
             query_protein = row['query_protein']
             threshold = row['threshold']
             similar_proteins_str = row.get('similar_proteins', '')
             
             # Use 'high' threshold similar proteins
-            if threshold == 'high' and pd.notna(similar_proteins_str):
+            if threshold == 'high' and similar_proteins_str is not None:
                 # Extract protein IDs from string like "P05177 (100.0%), P04799 (75.1%)"
                 protein_ids = []
                 for protein_entry in similar_proteins_str.split(","):
@@ -117,7 +117,7 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
         return {}
 
 
-def load_papyrus_data() -> pd.DataFrame:
+def load_papyrus_data() -> pl.DataFrame:
     """
     Load Papyrus++ dataset using papyrus_scripts
     
@@ -131,7 +131,8 @@ def load_papyrus_data() -> pd.DataFrame:
         logger.info("This may take ~5 minutes on first load")
         
         papyrus_data = PapyrusDataset(version='latest', plusplus=True)
-        papyrus_df = papyrus_data.to_dataframe()
+        papyrus_pd_df = papyrus_data.to_dataframe()
+        papyrus_df = pl.from_pandas(papyrus_pd_df)
         
         logger.info(f"Loaded {len(papyrus_df):,} total activities from Papyrus++")
         return papyrus_df
@@ -161,7 +162,7 @@ def assign_class_labels(
     Returns:
         Class label: 'Low', 'Medium', or 'High'
     """
-    if pd.isna(pchembl_value):
+    if pchembl_value is None:
         return 'Unknown'
     
     if pchembl_value <= cutoff_medium:
@@ -173,7 +174,7 @@ def assign_class_labels(
 
 
 def analyze_protein_class_distribution(
-    protein_data: pd.DataFrame,
+    protein_data: pl.DataFrame,
     cutoff_medium: float,
     cutoff_high: float
 ) -> Dict[str, int]:
@@ -188,17 +189,24 @@ def analyze_protein_class_distribution(
     Returns:
         Dictionary with class counts
     """
-    if protein_data.empty or 'pchembl_value_Mean' not in protein_data.columns:
+    if protein_data.is_empty() or 'pchembl_value_Mean' not in protein_data.columns:
         return {'Low': 0, 'Medium': 0, 'High': 0, 'Unknown': 0, 'Total': 0}
     
     # Assign classes
-    protein_data = protein_data.copy()
-    protein_data['class'] = protein_data['pchembl_value_Mean'].apply(
-        lambda x: assign_class_labels(x, cutoff_medium, cutoff_high)
+    protein_data = protein_data.with_columns(
+        pl.when(pl.col('pchembl_value_Mean').is_null())
+        .then(pl.lit('Unknown'))
+        .when(pl.col('pchembl_value_Mean') <= cutoff_medium)
+        .then(pl.lit('Low'))
+        .when((pl.col('pchembl_value_Mean') > cutoff_medium) & (pl.col('pchembl_value_Mean') <= cutoff_high))
+        .then(pl.lit('Medium'))
+        .otherwise(pl.lit('High'))
+        .alias('class')
     )
     
     # Count classes
-    class_counts = protein_data['class'].value_counts().to_dict()
+    class_counts_df = protein_data.group_by('class').agg(pl.len().alias('count'))
+    class_counts = {row['class']: row['count'] for row in class_counts_df.iter_rows(named=True)}
     
     # Ensure all classes are present
     result = {
@@ -213,7 +221,7 @@ def analyze_protein_class_distribution(
 
 
 def calculate_imbalance_ratio_from_data(
-    protein_data: pd.DataFrame,
+    protein_data: pl.DataFrame,
     cutoff_medium: float,
     cutoff_high: float
 ) -> float:
@@ -228,7 +236,7 @@ def calculate_imbalance_ratio_from_data(
     Returns:
         Imbalance ratio (max/min class count), or inf if any class is empty
     """
-    if protein_data.empty:
+    if protein_data.is_empty():
         return float('inf')
     
     class_counts = analyze_protein_class_distribution(protein_data, cutoff_medium, cutoff_high)
@@ -245,7 +253,7 @@ def calculate_imbalance_ratio_from_data(
 
 
 def greedy_search_optimal_cutoffs(
-    protein_data: pd.DataFrame,
+    protein_data: pl.DataFrame,
     original_cutoff_medium: float,
     original_cutoff_high: float,
     step_size: float = 0.1,
@@ -273,7 +281,7 @@ def greedy_search_optimal_cutoffs(
     max_gap = 2.5
     
     # Skip optimization if no data
-    if protein_data.empty:
+    if protein_data.is_empty():
         return original_cutoff_medium, original_cutoff_high, float('inf')
     
     # Initialize with original cutoffs
@@ -436,7 +444,7 @@ def calculate_imbalance_metrics(class_counts: Dict[str, int]) -> Dict[str, float
 
 
 def analyze_2class_options(
-    protein_data: pd.DataFrame,
+    protein_data: pl.DataFrame,
     cutoff_medium: float,
     cutoff_high: float
 ) -> Dict[str, Any]:
@@ -451,7 +459,7 @@ def analyze_2class_options(
     Returns:
         Dictionary with best 2-class option and metrics
     """
-    if protein_data.empty or 'pchembl_value_Mean' not in protein_data.columns:
+    if protein_data.is_empty() or 'pchembl_value_Mean' not in protein_data.columns:
         return {
             'best_option': None,
             'best_ratio': float('inf'),
@@ -588,7 +596,7 @@ def create_summary_statistics(
     results: List[Dict],
     output_dir: Path,
     suffix: str = ""
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """
     Create summary statistics DataFrame and save to CSV
     
@@ -629,21 +637,21 @@ def create_summary_statistics(
         
         summary_data.append(summary_row)
     
-    summary_df = pd.DataFrame(summary_data)
+    summary_df = pl.DataFrame(summary_data)
     
     # Save to CSV
     if suffix:
         summary_file = output_dir / f'class_imbalance_summary_{suffix}.csv'
     else:
         summary_file = output_dir / 'class_imbalance_summary.csv'
-    summary_df.to_csv(summary_file, index=False)
+    summary_df.write_csv(summary_file)
     logger.info(f"Saved summary statistics to {summary_file}")
     
     return summary_df
 
 
 def create_visualizations(
-    summary_df: pd.DataFrame,
+    summary_df: pl.DataFrame,
     output_dir: Path,
     suffix: str = ""
 ):
@@ -678,9 +686,9 @@ def create_visualizations(
     
     # 1. Class distribution bar plot (counts)
     fig, ax = plt.subplots(figsize=(14, 8))
-    proteins_with_data = summary_df[summary_df['total_datapoints'] > 0]
+    proteins_with_data = summary_df.filter(pl.col('total_datapoints') > 0)
     
-    if not proteins_with_data.empty:
+    if not proteins_with_data.is_empty():
         x_pos = np.arange(len(proteins_with_data))
         width = 0.25
         
@@ -705,7 +713,7 @@ def create_visualizations(
     # 2. Class distribution percentage plot
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    if not proteins_with_data.empty:
+    if not proteins_with_data.is_empty():
         x_pos = np.arange(len(proteins_with_data))
         width = 0.25
         
@@ -731,9 +739,9 @@ def create_visualizations(
     # 3. Imbalance ratio distribution
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    imbalance_ratios = proteins_with_data['imbalance_ratio'].replace([np.inf, -np.inf], np.nan).dropna()
+    imbalance_ratios = proteins_with_data['imbalance_ratio'].replace([np.inf, -np.inf], None).drop_nulls()
     
-    if not imbalance_ratios.empty:
+    if not imbalance_ratios.is_empty():
         ax.hist(imbalance_ratios, bins=30, edgecolor='black', alpha=0.7, color='#9b59b6')
         ax.set_xlabel('Imbalance Ratio (Max/Min)', fontsize=12)
         ax.set_ylabel('Number of Proteins', fontsize=12)
@@ -749,7 +757,7 @@ def create_visualizations(
     # 4. Total datapoints per protein
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    proteins_sorted = summary_df.sort_values('total_datapoints', ascending=False)
+    proteins_sorted = summary_df.sort('total_datapoints', descending=True)
     
     ax.barh(range(len(proteins_sorted)), proteins_sorted['total_datapoints'], color='#2ecc71')
     ax.set_yticks(range(len(proteins_sorted)))
@@ -768,9 +776,11 @@ def create_visualizations(
     # 5. Class percentage heatmap
     fig, ax = plt.subplots(figsize=(14, max(8, len(proteins_with_data) * 0.3)))
     
-    if not proteins_with_data.empty:
-        heatmap_data = proteins_with_data[['low_pct', 'medium_pct', 'high_pct']].T
-        heatmap_data.columns = proteins_with_data['name2_entry']
+    if not proteins_with_data.is_empty():
+        # Convert to pandas for plotting (seaborn/matplotlib work better with pandas)
+        proteins_with_data_pd = proteins_with_data.select(['low_pct', 'medium_pct', 'high_pct', 'name2_entry']).to_pandas()
+        heatmap_data = proteins_with_data_pd[['low_pct', 'medium_pct', 'high_pct']].T
+        heatmap_data.columns = proteins_with_data_pd['name2_entry']
         
         sns.heatmap(
             heatmap_data,
@@ -795,8 +805,8 @@ def create_visualizations(
 
 
 def create_comparison_visualizations(
-    summary_df_original: pd.DataFrame,
-    summary_df_optimized: pd.DataFrame,
+    summary_df_original: pl.DataFrame,
+    summary_df_optimized: pl.DataFrame,
     output_dir: Path
 ):
     """
@@ -811,25 +821,23 @@ def create_comparison_visualizations(
     plots_dir.mkdir(parents=True, exist_ok=True)
     
     # Merge dataframes for comparison
-    comparison_df = summary_df_original[['name2_entry', 'uniprot_id', 'imbalance_ratio']].copy()
-    comparison_df = comparison_df.rename(columns={'imbalance_ratio': 'original_imbalance_ratio'})
+    comparison_df = summary_df_original.select(['name2_entry', 'uniprot_id', 'imbalance_ratio']).rename({'imbalance_ratio': 'original_imbalance_ratio'})
     
-    comparison_df = comparison_df.merge(
-        summary_df_optimized[['uniprot_id', 'imbalance_ratio', 'improvement_pct']],
+    comparison_df = comparison_df.join(
+        summary_df_optimized.select(['uniprot_id', 'imbalance_ratio', 'improvement_pct']),
         on='uniprot_id',
         how='left'
-    )
-    comparison_df = comparison_df.rename(columns={'imbalance_ratio': 'optimized_imbalance_ratio'})
+    ).rename({'imbalance_ratio': 'optimized_imbalance_ratio'})
     
     # Filter out proteins with no data
-    comparison_df = comparison_df[
-        (comparison_df['original_imbalance_ratio'] > 0) & 
-        (comparison_df['original_imbalance_ratio'] != np.inf) &
-        (comparison_df['optimized_imbalance_ratio'] > 0) &
-        (comparison_df['optimized_imbalance_ratio'] != np.inf)
-    ]
+    comparison_df = comparison_df.filter(
+        (pl.col('original_imbalance_ratio') > 0) & 
+        (pl.col('original_imbalance_ratio') != np.inf) &
+        (pl.col('optimized_imbalance_ratio') > 0) &
+        (pl.col('optimized_imbalance_ratio') != np.inf)
+    )
     
-    if comparison_df.empty:
+    if comparison_df.is_empty():
         logger.warning("No data available for comparison plots")
         return
     
@@ -868,7 +876,7 @@ def create_comparison_visualizations(
     # 2. Improvement percentage bar plot
     fig, ax = plt.subplots(figsize=(14, 8))
     
-    comparison_sorted = comparison_df.sort_values('improvement_pct', ascending=True)
+    comparison_sorted = comparison_df.sort('improvement_pct')
     
     colors = ['#e74c3c' if x < 0 else '#2ecc71' for x in comparison_sorted['improvement_pct']]
     ax.barh(
@@ -927,22 +935,19 @@ def create_comparison_visualizations(
     # 4. Cutoff changes visualization
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
     
-    cutoff_changes = summary_df_optimized.copy()
-    cutoff_changes['medium_change'] = (
-        cutoff_changes['optimized_cutoff_medium'] - cutoff_changes['original_cutoff_medium']
-    )
-    cutoff_changes['high_change'] = (
-        cutoff_changes['optimized_cutoff_high'] - cutoff_changes['original_cutoff_high']
-    )
-    cutoff_changes = cutoff_changes[cutoff_changes['total_datapoints'] > 0]
-    cutoff_changes = cutoff_changes.sort_values('medium_change')
+    cutoff_changes = summary_df_optimized.with_columns([
+        (pl.col('optimized_cutoff_medium') - pl.col('cutoff_medium')).alias('medium_change'),
+        (pl.col('optimized_cutoff_high') - pl.col('cutoff_high')).alias('high_change')
+    ])
+    cutoff_changes = cutoff_changes.filter(pl.col('total_datapoints') > 0)
+    cutoff_changes_medium = cutoff_changes.sort('medium_change')
     
     # Medium cutoff changes
     colors_medium = ['#e74c3c' if x < 0 else '#2ecc71' if x > 0 else '#95a5a6' 
-                     for x in cutoff_changes['medium_change']]
-    ax1.barh(range(len(cutoff_changes)), cutoff_changes['medium_change'], color=colors_medium, alpha=0.7)
-    ax1.set_yticks(range(len(cutoff_changes)))
-    ax1.set_yticklabels(cutoff_changes['name2_entry'])
+                     for x in cutoff_changes_medium['medium_change']]
+    ax1.barh(range(len(cutoff_changes_medium)), cutoff_changes_medium['medium_change'], color=colors_medium, alpha=0.7)
+    ax1.set_yticks(range(len(cutoff_changes_medium)))
+    ax1.set_yticklabels(cutoff_changes_medium['name2_entry'])
     ax1.set_xlabel('Change in Medium Cutoff', fontsize=12)
     ax1.set_ylabel('Protein', fontsize=12)
     ax1.set_title('Medium Cutoff Changes (Optimized - Original)', fontsize=14, fontweight='bold')
@@ -950,12 +955,12 @@ def create_comparison_visualizations(
     ax1.grid(axis='x', alpha=0.3)
     
     # High cutoff changes
-    cutoff_changes = cutoff_changes.sort_values('high_change')
+    cutoff_changes_high = cutoff_changes.sort('high_change')
     colors_high = ['#e74c3c' if x < 0 else '#2ecc71' if x > 0 else '#95a5a6' 
-                   for x in cutoff_changes['high_change']]
-    ax2.barh(range(len(cutoff_changes)), cutoff_changes['high_change'], color=colors_high, alpha=0.7)
-    ax2.set_yticks(range(len(cutoff_changes)))
-    ax2.set_yticklabels(cutoff_changes['name2_entry'])
+                   for x in cutoff_changes_high['high_change']]
+    ax2.barh(range(len(cutoff_changes_high)), cutoff_changes_high['high_change'], color=colors_high, alpha=0.7)
+    ax2.set_yticks(range(len(cutoff_changes_high)))
+    ax2.set_yticklabels(cutoff_changes_high['name2_entry'])
     ax2.set_xlabel('Change in High Cutoff', fontsize=12)
     ax2.set_ylabel('Protein', fontsize=12)
     ax2.set_title('High Cutoff Changes (Optimized - Original)', fontsize=14, fontweight='bold')
@@ -1065,7 +1070,7 @@ def main():
     # Filter out proteins with insufficient data points for modeling (<30)
     proteins_to_exclude = ['AHR', 'AOX1', 'CHRNA3', 'GSTA1', 'SLCO1B1', 'SULT1A1', 'SLCO2B3']
     initial_count = len(cutoff_df)
-    cutoff_df = cutoff_df[~cutoff_df['name2_entry'].isin(proteins_to_exclude)]
+    cutoff_df = cutoff_df.filter(~pl.col('name2_entry').is_in(proteins_to_exclude))
     excluded_count = initial_count - len(cutoff_df)
     if excluded_count > 0:
         logger.info(f"Excluded {excluded_count} proteins with insufficient data points: {', '.join(proteins_to_exclude)}")
@@ -1083,11 +1088,11 @@ def main():
     logger.info("=" * 80)
     
     results_target_only = []
-    uniprot_ids = cutoff_df['uniprot_id'].tolist()
+    uniprot_ids = cutoff_df['uniprot_id'].to_list()
     
     logger.info(f"\nAnalyzing class distributions for {len(uniprot_ids)} target proteins (target only)...")
     
-    for idx, row in cutoff_df.iterrows():
+    for row in cutoff_df.iter_rows(named=True):
         name2_entry = row['name2_entry']
         uniprot_id = row['uniprot_id']
         cutoff_high = float(row['cutoff_high'])
@@ -1097,11 +1102,11 @@ def main():
         logger.info(f"\nProcessing {name2_entry} ({uniprot_id})...")
         
         # Filter bioactivity data for this protein only
-        protein_data = papyrus_df[papyrus_df['accession'] == uniprot_id].copy()
+        protein_data = papyrus_df.filter(pl.col('accession') == uniprot_id)
         
         # Filter for valid data
-        protein_data = protein_data.dropna(subset=['SMILES', 'pchembl_value_Mean'])
-        protein_data = protein_data[protein_data['SMILES'] != '']
+        protein_data = protein_data.drop_nulls(subset=['SMILES', 'pchembl_value_Mean'])
+        protein_data = protein_data.filter(pl.col('SMILES') != '')
         
         logger.info(f"  Found {len(protein_data)} bioactivity datapoints (target only)")
         
@@ -1140,7 +1145,7 @@ def main():
     
     logger.info(f"\nAnalyzing class distributions for {len(uniprot_ids)} target proteins (with similar proteins)...")
     
-    for idx, row in cutoff_df.iterrows():
+    for row in cutoff_df.iter_rows(named=True):
         name2_entry = row['name2_entry']
         uniprot_id = row['uniprot_id']
         cutoff_high = float(row['cutoff_high'])
@@ -1160,11 +1165,11 @@ def main():
             logger.info(f"  Found {len(similar_proteins)} similar proteins (including target)")
         
         # Filter bioactivity data for target + similar proteins
-        protein_data = papyrus_df[papyrus_df['accession'].isin(similar_proteins)].copy()
+        protein_data = papyrus_df.filter(pl.col('accession').is_in(similar_proteins))
         
         # Filter for valid data
-        protein_data = protein_data.dropna(subset=['SMILES', 'pchembl_value_Mean'])
-        protein_data = protein_data[protein_data['SMILES'] != '']
+        protein_data = protein_data.drop_nulls(subset=['SMILES', 'pchembl_value_Mean'])
+        protein_data = protein_data.filter(pl.col('SMILES') != '')
         
         logger.info(f"  Found {len(protein_data)} bioactivity datapoints (target + similar)")
         
@@ -1220,7 +1225,7 @@ def main():
     
     logger.info(f"\nOptimizing cutoffs for {len(uniprot_ids)} target proteins...")
     
-    for idx, row in cutoff_df.iterrows():
+    for row in cutoff_df.iter_rows(named=True):
         name2_entry = row['name2_entry']
         uniprot_id = row['uniprot_id']
         original_cutoff_high = float(row['cutoff_high'])
@@ -1237,11 +1242,11 @@ def main():
             similar_proteins = [uniprot_id]
         
         # Filter bioactivity data for target + similar proteins
-        protein_data = papyrus_df[papyrus_df['accession'].isin(similar_proteins)].copy()
+        protein_data = papyrus_df.filter(pl.col('accession').is_in(similar_proteins))
         
         # Filter for valid data
-        protein_data = protein_data.dropna(subset=['SMILES', 'pchembl_value_Mean'])
-        protein_data = protein_data[protein_data['SMILES'] != '']
+        protein_data = protein_data.drop_nulls(subset=['SMILES', 'pchembl_value_Mean'])
+        protein_data = protein_data.filter(pl.col('SMILES') != '')
         
         if len(protein_data) == 0:
             logger.info(f"  No data available, skipping optimization")
@@ -1430,9 +1435,9 @@ def main():
             'medium_vs_high_ratio': result.get('medium_vs_high_ratio', float('inf'))
         })
     
-    summary_df_optimized = pd.DataFrame(summary_data_optimized)
+    summary_df_optimized = pl.DataFrame(summary_data_optimized)
     summary_file_optimized = output_dir / 'class_imbalance_summary_optimized.csv'
-    summary_df_optimized.to_csv(summary_file_optimized, index=False)
+    summary_df_optimized.write_csv(summary_file_optimized)
     logger.info(f"Saved optimized summary statistics to {summary_file_optimized}")
     
     # Step 12: Create visualizations for optimized cutoffs
@@ -1469,19 +1474,19 @@ def main():
     logger.info("=" * 80)
     
     total_proteins = len(summary_df_target)
-    proteins_with_data = summary_df_target[summary_df_target['total_datapoints'] > 0]
-    proteins_without_data = summary_df_target[summary_df_target['total_datapoints'] == 0]
+    proteins_with_data = summary_df_target.filter(pl.col('total_datapoints') > 0)
+    proteins_without_data = summary_df_target.filter(pl.col('total_datapoints') == 0)
     
     logger.info(f"Total proteins analyzed: {total_proteins}")
     logger.info(f"Proteins with bioactivity data: {len(proteins_with_data)}")
     logger.info(f"Proteins without bioactivity data: {len(proteins_without_data)}")
     
-    if not proteins_without_data.empty:
+    if not proteins_without_data.is_empty():
         logger.info(f"\nProteins without data:")
-        for _, row in proteins_without_data.iterrows():
+        for row in proteins_without_data.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']} ({row['uniprot_id']})")
     
-    if not proteins_with_data.empty:
+    if not proteins_with_data.is_empty():
         total_datapoints = proteins_with_data['total_datapoints'].sum()
         avg_imbalance = proteins_with_data['imbalance_ratio'].mean()
         max_imbalance = proteins_with_data['imbalance_ratio'].max()
@@ -1493,9 +1498,9 @@ def main():
         logger.info(f"Minimum imbalance ratio: {min_imbalance:.2f}")
         
         # Most imbalanced proteins
-        most_imbalanced = proteins_with_data.nlargest(5, 'imbalance_ratio')
+        most_imbalanced = proteins_with_data.sort('imbalance_ratio', descending=True).head(5)
         logger.info(f"\nTop 5 most imbalanced proteins:")
-        for _, row in most_imbalanced.iterrows():
+        for row in most_imbalanced.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']}: ratio={row['imbalance_ratio']:.2f}, "
                        f"Low={row['low_count']}, Medium={row['medium_count']}, High={row['high_count']}")
     
@@ -1504,19 +1509,19 @@ def main():
     logger.info("=" * 80)
     
     total_proteins = len(summary_df_with_similar)
-    proteins_with_data = summary_df_with_similar[summary_df_with_similar['total_datapoints'] > 0]
-    proteins_without_data = summary_df_with_similar[summary_df_with_similar['total_datapoints'] == 0]
+    proteins_with_data = summary_df_with_similar.filter(pl.col('total_datapoints') > 0)
+    proteins_without_data = summary_df_with_similar.filter(pl.col('total_datapoints') == 0)
     
     logger.info(f"Total proteins analyzed: {total_proteins}")
     logger.info(f"Proteins with bioactivity data: {len(proteins_with_data)}")
     logger.info(f"Proteins without bioactivity data: {len(proteins_without_data)}")
     
-    if not proteins_without_data.empty:
+    if not proteins_without_data.is_empty():
         logger.info(f"\nProteins without data:")
-        for _, row in proteins_without_data.iterrows():
+        for row in proteins_without_data.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']} ({row['uniprot_id']})")
     
-    if not proteins_with_data.empty:
+    if not proteins_with_data.is_empty():
         total_datapoints = proteins_with_data['total_datapoints'].sum()
         avg_imbalance = proteins_with_data['imbalance_ratio'].mean()
         max_imbalance = proteins_with_data['imbalance_ratio'].max()
@@ -1528,9 +1533,9 @@ def main():
         logger.info(f"Minimum imbalance ratio: {min_imbalance:.2f}")
         
         # Most imbalanced proteins
-        most_imbalanced = proteins_with_data.nlargest(5, 'imbalance_ratio')
+        most_imbalanced = proteins_with_data.sort('imbalance_ratio', descending=True).head(5)
         logger.info(f"\nTop 5 most imbalanced proteins:")
-        for _, row in most_imbalanced.iterrows():
+        for row in most_imbalanced.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']}: ratio={row['imbalance_ratio']:.2f}, "
                        f"Low={row['low_count']}, Medium={row['medium_count']}, High={row['high_count']}")
     
@@ -1540,14 +1545,14 @@ def main():
     logger.info("=" * 80)
     
     total_proteins = len(summary_df_optimized)
-    proteins_with_data = summary_df_optimized[summary_df_optimized['total_datapoints'] > 0]
-    proteins_without_data = summary_df_optimized[summary_df_optimized['total_datapoints'] == 0]
+    proteins_with_data = summary_df_optimized.filter(pl.col('total_datapoints') > 0)
+    proteins_without_data = summary_df_optimized.filter(pl.col('total_datapoints') == 0)
     
     logger.info(f"Total proteins analyzed: {total_proteins}")
     logger.info(f"Proteins with bioactivity data: {len(proteins_with_data)}")
     logger.info(f"Proteins without bioactivity data: {len(proteins_without_data)}")
     
-    if not proteins_with_data.empty:
+    if not proteins_with_data.is_empty():
         total_datapoints = proteins_with_data['total_datapoints'].sum()
         avg_imbalance_original = proteins_with_data['original_imbalance_ratio'].mean()
         avg_imbalance_optimized = proteins_with_data['optimized_imbalance_ratio'].mean()
@@ -1563,18 +1568,18 @@ def main():
         logger.info(f"Minimum imbalance ratio (optimized): {min_imbalance:.2f}")
         
         # Most improved proteins
-        most_improved = proteins_with_data.nlargest(5, 'improvement_pct')
+        most_improved = proteins_with_data.sort('improvement_pct', descending=True).head(5)
         logger.info(f"\nTop 5 most improved proteins:")
-        for _, row in most_improved.iterrows():
+        for row in most_improved.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']}: "
                        f"original={row['original_imbalance_ratio']:.2f}, "
                        f"optimized={row['optimized_imbalance_ratio']:.2f}, "
                        f"improvement={row['improvement_pct']:.1f}%")
         
         # Most imbalanced proteins (after optimization)
-        most_imbalanced = proteins_with_data.nlargest(5, 'optimized_imbalance_ratio')
+        most_imbalanced = proteins_with_data.sort('optimized_imbalance_ratio', descending=True).head(5)
         logger.info(f"\nTop 5 most imbalanced proteins (after optimization):")
-        for _, row in most_imbalanced.iterrows():
+        for row in most_imbalanced.iter_rows(named=True):
             logger.info(f"  - {row['name2_entry']}: ratio={row['optimized_imbalance_ratio']:.2f}, "
                        f"Low={row['low_count']}, Medium={row['medium_count']}, High={row['high_count']}")
     
@@ -1588,13 +1593,13 @@ def main():
 
     # Compact stdout report (2–3 lines)
     try:
-        tgt_with_data = (summary_df_target['total_datapoints'] > 0).sum()
-        sim_with_data = (summary_df_with_similar['total_datapoints'] > 0).sum()
-        opt_with_data = summary_df_optimized[summary_df_optimized['total_datapoints'] > 0]
+        tgt_with_data = summary_df_target.filter(pl.col('total_datapoints') > 0).height
+        sim_with_data = summary_df_with_similar.filter(pl.col('total_datapoints') > 0).height
+        opt_with_data = summary_df_optimized.filter(pl.col('total_datapoints') > 0)
 
         print(f"[AQSE Step 4] Proteins with data (target only / with similar): {tgt_with_data} / {sim_with_data}")
 
-        if not opt_with_data.empty:
+        if not opt_with_data.is_empty():
             avg_orig = opt_with_data['original_imbalance_ratio'].mean()
             avg_opt = opt_with_data['optimized_imbalance_ratio'].mean()
             print(f"[AQSE Step 4] Avg imbalance ratio (original / optimized): {avg_orig:.2f} / {avg_opt:.2f}")

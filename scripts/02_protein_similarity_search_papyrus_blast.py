@@ -13,7 +13,7 @@ Hybrid approach:
 
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import os
 import logging
@@ -25,7 +25,6 @@ from collections import defaultdict
 from Bio import SeqIO
 from Bio.SeqUtils import seq1
 from Bio.Seq import Seq
-from Bio.Blast.Applications import NcbiblastpCommandline, NcbimakeblastdbCommandline
 from Bio.Blast import NCBIXML
 import requests
 from io import StringIO
@@ -105,7 +104,7 @@ class ProteinSimilaritySearchPapyrus:
         logger.info(f"Loaded {len(sequences)} avoidome protein sequences")
         return sequences
     
-    def get_papyrus_protein_sequences(self) -> pd.DataFrame:
+    def get_papyrus_protein_sequences(self) -> pl.DataFrame:
         """
         Get protein sequences from Papyrus database
         
@@ -121,21 +120,22 @@ class ProteinSimilaritySearchPapyrus:
             
             # Convert to DataFrame if it's a PapyrusProteinSet
             if hasattr(protein_data, 'to_dataframe'):
-                protein_df = protein_data.to_dataframe()
+                protein_pd_df = protein_data.to_dataframe()
+                protein_df = pl.from_pandas(protein_pd_df)
             else:
-                protein_df = protein_data
+                protein_df = pl.from_pandas(protein_data) if hasattr(protein_data, 'to_pandas') else pl.DataFrame(protein_data)
             
             # Filter for proteins with sequences (non-null and non-empty)
-            protein_df = protein_df.dropna(subset=['Sequence'])
+            protein_df = protein_df.drop_nulls(subset=['Sequence'])
             # Also filter out empty strings
-            protein_df = protein_df[protein_df['Sequence'].astype(str).str.strip() != '']
+            protein_df = protein_df.filter(pl.col('Sequence').cast(pl.Utf8).str.strip_chars() != '')
             logger.info(f"Found {len(protein_df)} proteins with sequences")
             
             return protein_df
             
         except Exception as e:
             logger.error(f"Error loading Papyrus protein data: {e}")
-            return pd.DataFrame()
+            return pl.DataFrame()
     
     def _clean_sequence(self, sequence: str) -> str:
         """
@@ -182,7 +182,7 @@ class ProteinSimilaritySearchPapyrus:
         
         return ''.join(cleaned)
     
-    def create_blast_database(self, papyrus_proteins: pd.DataFrame, force_rebuild: bool = False) -> bool:
+    def create_blast_database(self, papyrus_proteins: pl.DataFrame, force_rebuild: bool = False) -> bool:
         """
         Create a BLAST database from Papyrus protein sequences
         
@@ -214,7 +214,7 @@ class ProteinSimilaritySearchPapyrus:
             id_mapping = {}  # Maps BLAST sequence index to original Papyrus target_id
             
             with open(self.blast_db_fasta, 'w') as f:
-                for _, row in papyrus_proteins.iterrows():
+                for row in papyrus_proteins.iter_rows(named=True):
                     protein_id = row['target_id']
                     sequence = row['Sequence']
                     
@@ -284,17 +284,25 @@ class ProteinSimilaritySearchPapyrus:
             
             # Create BLAST database with parse_seqids to preserve IDs
             logger.info("Building BLAST database...")
-            makeblastdb_cline = NcbimakeblastdbCommandline(
-                dbtype="prot",
-                input_file=str(self.blast_db_fasta),
-                out=str(self.blast_db_path),
-                parse_seqids=True  # Try to preserve sequence IDs
+            result = subprocess.run(
+                [
+                    'makeblastdb',
+                    '-dbtype', 'prot',
+                    '-in', str(self.blast_db_fasta),
+                    '-out', str(self.blast_db_path),
+                    '-parse_seqids'
+                ],
+                capture_output=True,
+                text=True,
+                check=False
             )
             
-            stdout, stderr = makeblastdb_cline()
+            if result.returncode != 0:
+                logger.error(f"BLAST database creation failed: {result.stderr}")
+                return False
             
-            if stderr and "Building a new DB" not in stderr:
-                logger.warning(f"BLAST database creation warnings: {stderr}")
+            if result.stderr and "Building a new DB" not in result.stderr:
+                logger.warning(f"BLAST database creation warnings: {result.stderr}")
             
             logger.info(f"BLAST database created successfully: {self.blast_db_path}")
             return True
@@ -398,20 +406,28 @@ class ProteinSimilaritySearchPapyrus:
             
             try:
                 # Run BLAST
-                blastp_cline = NcbiblastpCommandline(
-                    query=tmp_query_path,
-                    db=str(self.blast_db_path),
-                    out=tmp_output_path,
-                    outfmt=5,  # XML format
-                    evalue=10.0,  # E-value threshold
-                    max_target_seqs=10000,  # Maximum number of hits
-                    num_threads=1
+                result = subprocess.run(
+                    [
+                        'blastp',
+                        '-query', tmp_query_path,
+                        '-db', str(self.blast_db_path),
+                        '-out', tmp_output_path,
+                        '-outfmt', '5',  # XML format
+                        '-evalue', '10.0',  # E-value threshold
+                        '-max_target_seqs', '10000',  # Maximum number of hits
+                        '-num_threads', '1'
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False
                 )
                 
-                stdout, stderr = blastp_cline()
+                if result.returncode != 0:
+                    logger.error(f"BLAST failed for {query_id}: {result.stderr}")
+                    return hits
                 
-                if stderr:
-                    logger.warning(f"BLAST warnings for {query_id}: {stderr}")
+                if result.stderr:
+                    logger.warning(f"BLAST warnings for {query_id}: {result.stderr}")
                 
                 # Parse BLAST results
                 with open(tmp_output_path, 'r') as result_handle:
@@ -491,7 +507,7 @@ class ProteinSimilaritySearchPapyrus:
         return hits
     
     def find_similar_proteins(self, avoidome_sequences: Dict[str, str], 
-                            papyrus_proteins: pd.DataFrame) -> Dict[str, List[Dict]]:
+                            papyrus_proteins: pl.DataFrame) -> Dict[str, List[Dict]]:
         """
         Find similar proteins in Papyrus for each avoidome protein using BLAST
         
@@ -506,7 +522,7 @@ class ProteinSimilaritySearchPapyrus:
         
         # Create a lookup dictionary for Papyrus protein metadata
         papyrus_metadata = {}
-        for _, row in papyrus_proteins.iterrows():
+        for row in papyrus_proteins.iter_rows(named=True):
             papyrus_metadata[row['target_id']] = {
                 'organism': row.get('Organism', 'Unknown'),
                 'protein_class': row.get('Classification', 'Unknown'),
@@ -548,7 +564,7 @@ class ProteinSimilaritySearchPapyrus:
         
         return similar_proteins
     
-    def create_summary_statistics(self, similar_proteins: Dict[str, List[Dict]]) -> pd.DataFrame:
+    def create_summary_statistics(self, similar_proteins: Dict[str, List[Dict]]) -> pl.DataFrame:
         """
         Create summary statistics for similarity search
         
@@ -632,16 +648,16 @@ class ProteinSimilaritySearchPapyrus:
                     'similar_proteins': ', '.join(similar_names)
                 })
         
-        summary_df = pd.DataFrame(summary_data)
+        summary_df = pl.DataFrame(summary_data)
         
         # Save summary
         summary_file = self.output_dir / "similarity_search_summary.csv"
-        summary_df.to_csv(summary_file, index=False)
+        summary_df.write_csv(summary_file)
         
         logger.info(f"Saved summary statistics to {summary_file}")
         return summary_df
     
-    def create_visualizations(self, summary_df: pd.DataFrame):
+    def create_visualizations(self, summary_df: pl.DataFrame):
         """
         Create visualizations for similarity search results
         
@@ -655,12 +671,13 @@ class ProteinSimilaritySearchPapyrus:
         sns.set_palette("husl")
         
         # Number of similar proteins per avoidome protein
-        if not summary_df.empty:
+        if not summary_df.is_empty():
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # Pivot for plotting
+            # Pivot for plotting - convert to pandas for matplotlib compatibility
             pivot_df = summary_df.pivot(index='query_protein', columns='threshold', values='num_similar_proteins')
-            pivot_df.plot(kind='bar', ax=ax)
+            pivot_df_pd = pivot_df.to_pandas()
+            pivot_df_pd.plot(kind='bar', ax=ax)
             
             ax.set_title('Number of Similar Proteins per Avoidome Protein')
             ax.set_xlabel('Avoidome Protein')
@@ -697,7 +714,7 @@ class ProteinSimilaritySearchPapyrus:
         
         # Get Papyrus protein sequences (possible queries)
         papyrus_proteins = self.get_papyrus_protein_sequences()
-        if papyrus_proteins.empty:
+        if papyrus_proteins.is_empty():
             logger.error("No Papyrus protein sequences loaded")
             return {}
         

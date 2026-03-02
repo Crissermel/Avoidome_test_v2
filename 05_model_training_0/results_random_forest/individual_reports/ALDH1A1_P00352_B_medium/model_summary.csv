@@ -1,0 +1,20 @@
+Model Information,
+Protein,ALDH1A1
+UniProt ID,P00352
+Model Type,B
+Threshold,medium
+Generation Time,2026-03-02T14:53:50.935453
+,
+Performance Metrics,
+Accuracy,0.5666666666666667
+F1-Macro,0.5495311167945439
+F1-Weighted,0.5609548167092925
+Precision-Macro,0.5472222222222222
+Recall-Macro,0.5535353535353535
+,
+Data Summary,
+Target Bioactivity Points,241
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,9
+Expanded Bioactivity Points,91

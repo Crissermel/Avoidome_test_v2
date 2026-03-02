@@ -1,0 +1,20 @@
+Model Information,
+Protein,CYP2D6
+UniProt ID,P10635
+Model Type,A
+Threshold,N/A
+Generation Time,2026-03-02T14:53:50.819348
+,
+Performance Metrics,
+Accuracy,0.6557377049180327
+F1-Macro,0.6544481669718126
+F1-Weighted,0.6562398538089153
+Precision-Macro,0.6587962962962962
+Recall-Macro,0.6521164021164022
+,
+Data Summary,
+Target Bioactivity Points,607
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,
+Expanded Bioactivity Points,

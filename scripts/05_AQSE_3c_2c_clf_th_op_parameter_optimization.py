@@ -18,7 +18,7 @@ import argparse
 import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
-import pandas as pd
+import polars as pl
 import numpy as np
 
 # MLflow imports (optional)
@@ -84,7 +84,7 @@ except ImportError as e:
 # ============================================================================
 
 def prepare_model_a_data(
-    bioactivity_data: pd.DataFrame,
+    bioactivity_data: pl.DataFrame,
     uniprot_id: str,
     thresholds: Dict[str, Any],
     model_trainer,
@@ -92,7 +92,7 @@ def prepare_model_a_data(
     bioactivity_loader,
     config: Dict[str, Any],
     logger: logging.Logger
-) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame], Optional[pd.DataFrame], int]:
+) -> Tuple[Optional[pl.DataFrame], Optional[pl.DataFrame], Optional[pl.DataFrame], int]:
     """
     Prepare data for Model A training.
     
@@ -116,8 +116,8 @@ def prepare_model_a_data(
     if missing_cols:
         raise KeyError(f"Missing required columns in bioactivity_data: {missing_cols}")
     
-    bioactivity_data = bioactivity_data.dropna(subset=required_cols)
-    bioactivity_data = bioactivity_data[bioactivity_data['SMILES'] != '']
+    bioactivity_data = bioactivity_data.drop_nulls(subset=required_cols)
+    bioactivity_data = bioactivity_data.filter(pl.col('SMILES') != '')
     
     # Assign class labels
     bioactivity_data = assign_class_labels(bioactivity_data, thresholds)
@@ -167,7 +167,7 @@ def prepare_model_a_data(
             columns_to_keep.append('doc_id')
         if 'accession' in bioactivity_data.columns:
             columns_to_keep.append('accession')
-        bioactivity_data_clean = bioactivity_data[columns_to_keep].copy()
+        bioactivity_data_clean = bioactivity_data.select(columns_to_keep)
         
         # Split data: 80% train, 20% test with stratification (and optionally validation)
         use_optimization = config.get('enable_parameter_optimization', False)
@@ -193,15 +193,15 @@ def prepare_model_a_data(
 
 
 def prepare_model_b_data(
-    similar_data: pd.DataFrame,
-    target_data: pd.DataFrame,
+    similar_data: pl.DataFrame,
+    target_data: pl.DataFrame,
     uniprot_id: str,
     thresholds: Dict[str, Any],
     model_trainer,
     cached_fingerprints: Dict[str, np.ndarray],
     bioactivity_loader,
     logger: logging.Logger
-) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+) -> Tuple[Optional[pl.DataFrame], Optional[pl.DataFrame]]:
     """
     Prepare data for Model B training.
     
@@ -234,10 +234,10 @@ def prepare_model_b_data(
         logger.warning(f"Missing required columns in target_data: {missing_cols}")
         return None, None
     
-    similar_data = similar_data.dropna(subset=required_cols)
-    target_data = target_data.dropna(subset=required_cols)
-    similar_data = similar_data[similar_data['SMILES'] != '']
-    target_data = target_data[target_data['SMILES'] != '']
+    similar_data = similar_data.drop_nulls(subset=required_cols)
+    target_data = target_data.drop_nulls(subset=required_cols)
+    similar_data = similar_data.filter(pl.col('SMILES') != '')
+    target_data = target_data.filter(pl.col('SMILES') != '')
     
     # Check again after filtering
     if len(similar_data) == 0 or len(target_data) == 0:
@@ -253,7 +253,7 @@ def prepare_model_b_data(
     target_train, target_test, _ = split_data_stratified(target_data, test_size=0.2)
     
     # Combine training data: 100% similar + 80% target
-    train_data = pd.concat([similar_data, target_train], ignore_index=True)
+    train_data = pl.concat([similar_data, target_train])
     
     # Extract features (conditional based on trainer requirements)
     if model_trainer.requires_precomputed_features():
@@ -263,7 +263,7 @@ def prepare_model_b_data(
         # For similar proteins - need to handle multiple proteins
         train_features = extract_multi_protein_features(
             train_data, 
-            train_data['accession'].unique(),
+            train_data['accession'].unique().to_list(),
             cached_fingerprints,
             bioactivity_loader,
             add_esmc=True
@@ -281,11 +281,11 @@ def prepare_model_b_data(
         logger.info("Preparing data for Chemprop (features extracted on-the-fly with ESM-C)...")
         
         # Ensure we have required columns: 'SMILES', 'class', 'accession'
-        train_features = train_data[['SMILES', 'class', 'accession']].copy()
-        test_features = target_test[['SMILES', 'class', 'accession']].copy()
+        train_features = train_data.select(['SMILES', 'class', 'accession'])
+        test_features = target_test.select(['SMILES', 'class', 'accession'])
         
         # Ensure test set has correct accession (target protein)
-        test_features['accession'] = uniprot_id
+        test_features = test_features.with_columns(pl.lit(uniprot_id).alias('accession'))
     
     return train_features, test_features
 
@@ -297,8 +297,8 @@ def prepare_model_b_data(
 def train_model_with_reporting(
     model_trainer: ModelTrainer,
     model_reporter: ModelReporter,
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
+    train_df: pl.DataFrame,
+    test_df: pl.DataFrame,
     model_type: str = 'A',
     protein_name: Optional[str] = None,
     threshold: Optional[str] = None,
@@ -451,8 +451,7 @@ def train_model_with_reporting(
             'n_train_samples': train_results.get('n_train_samples'),
             'n_test_samples': train_results.get('n_test_samples'),
             'n_target_bioactivity_datapoints': len(test_df) + len(train_df),
-            'n_features': train_results.get('feature_dimensions', 'N/A'),
-            'similar_proteins': 'N/A'  # Will be filled by caller if needed
+            'n_features': train_results.get('feature_dimensions', 'N/A')
         }
         
         # End MLflow run successfully
@@ -476,6 +475,15 @@ def train_model_with_reporting(
 # ============================================================================
 # Helper Functions - Result Saving
 # ============================================================================
+
+def _similar_proteins_to_csv_value(value: Any) -> str:
+    """Convert similar_proteins to a CSV-safe string (Polars expects uniform types)."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, list):
+        return ",".join(str(v) for v in value) if value else "N/A"
+    return str(value)
+
 
 def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model_reporter: ModelReporter, logger: logging.Logger):
     """
@@ -518,7 +526,7 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                 'has_similar_proteins': has_similar,
                 'n_total_similar_proteins': n_similar,
                 'n_features': model_a.get('n_features', 'N/A'),
-                'similar_proteins': model_a.get('similar_proteins', 'N/A')
+                'similar_proteins': _similar_proteins_to_csv_value(model_a.get('similar_proteins', 'N/A'))
             })
             
             # Add Model B results (one per threshold)
@@ -540,7 +548,7 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                         'has_similar_proteins': has_similar,
                         'n_total_similar_proteins': n_similar,
                         'n_features': threshold_data.get('n_features', 'N/A'),
-                        'similar_proteins': threshold_data.get('similar_proteins', 'N/A')
+                        'similar_proteins': _similar_proteins_to_csv_value(threshold_data.get('similar_proteins', 'N/A'))
                     })
         else:
             # Single model result: protein without similar proteins (Model A only)
@@ -559,11 +567,11 @@ def save_workflow_results(results: List[Dict[str, Any]], output_dir: Path, model
                 'has_similar_proteins': False,
                 'n_total_similar_proteins': 0,
                 'n_features': result.get('n_features', 'N/A'),
-                'similar_proteins': result.get('similar_proteins', 'N/A')
+                'similar_proteins': _similar_proteins_to_csv_value(result.get('similar_proteins', 'N/A'))
             })
     
-    df = pd.DataFrame(csv_data)
-    df.to_csv(results_file, index=False)
+    df = pl.DataFrame(csv_data)
+    df.write_csv(results_file)
     logger.info(f"Saved results to {results_file}")
     
     # Generate comprehensive summary report
@@ -822,8 +830,10 @@ def main():
                 logger.info(f"  Train: {len(train_df)}, Test: {len(test_df)}")
                 if val_df is not None:
                     logger.info(f"  Validation: {len(val_df)}")
-                logger.info(f"  Class distribution - Train: {train_df['class'].value_counts().to_dict()}")
-                logger.info(f"  Class distribution - Test: {test_df['class'].value_counts().to_dict()}")
+                train_class_counts = train_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                test_class_counts = test_df.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                logger.info(f"  Class distribution - Train: {dict((row['class'], row['count']) for row in train_class_counts)}")
+                logger.info(f"  Class distribution - Test: {dict((row['class'], row['count']) for row in test_class_counts)}")
                 
                 # Train Model A
                 use_optimization = config.get('enable_parameter_optimization', False)
@@ -1079,8 +1089,10 @@ def main():
                         continue
                     
                     logger.info(f"    Train: {len(train_features)}, Test: {len(test_features)}")
-                    logger.info(f"    Class distribution - Train: {train_features['class'].value_counts().to_dict()}")
-                    logger.info(f"    Class distribution - Test: {test_features['class'].value_counts().to_dict()}")
+                    train_class_counts = train_features.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                    test_class_counts = test_features.group_by('class').agg(pl.len().alias('count')).to_dicts()
+                    logger.info(f"    Class distribution - Train: {dict((row['class'], row['count']) for row in train_class_counts)}")
+                    logger.info(f"    Class distribution - Test: {dict((row['class'], row['count']) for row in test_class_counts)}")
                     
                     # Train model
                     train_results_b = train_model_with_reporting(
@@ -1102,6 +1114,7 @@ def main():
                     )
                     
                     threshold_result = {
+                        **train_results_b,
                         'status': 'complete',
                         'n_train': len(train_features),
                         'n_test': len(test_features),
@@ -1109,8 +1122,7 @@ def main():
                         'n_similar_activities': len(similar_data),
                         'n_target_activities': len(target_data),
                         'similar_proteins': similar_proteins_thresh,
-                        'n_features': train_results_b.get('n_features', 'N/A'),
-                        **train_results_b
+                        'n_features': train_results_b.get('n_features', 'N/A')
                     }
                     
                     # Display completion status for this threshold
@@ -1249,7 +1261,7 @@ def _generate_summary_tables(config: dict, project_root: Path, logger: logging.L
             )
             
             output_file = output_dir / "bioactivity_table.csv"
-            bioactivity_table.to_csv(output_file, index=False)
+            bioactivity_table.write_csv(output_file)
             logger.info(f"Saved bioactivity table to: {output_file} ({len(bioactivity_table):,} rows)")
         except Exception as e:
             logger.error(f"Error generating bioactivity table: {e}", exc_info=True)
@@ -1273,7 +1285,7 @@ def _generate_summary_tables(config: dict, project_root: Path, logger: logging.L
         )
         
         output_file = output_dir / "bioactivity_table_with_similar.csv"
-        bioactivity_table_with_similar.to_csv(output_file, index=False)
+        bioactivity_table_with_similar.write_csv(output_file)
         logger.info(f"Saved bioactivity table with similar proteins to: {output_file} ({len(bioactivity_table_with_similar):,} rows)")
     except Exception as e:
         logger.error(f"Error generating bioactivity table with similar: {e}", exc_info=True)
@@ -1313,7 +1325,7 @@ def _generate_summary_tables(config: dict, project_root: Path, logger: logging.L
         )
         
         output_file = output_dir / "protein_summary_table.csv"
-        protein_summary_table.to_csv(output_file, index=False)
+        protein_summary_table.write_csv(output_file)
         logger.info(f"Saved protein summary table to: {output_file} ({len(protein_summary_table)} rows)")
     except Exception as e:
         logger.error(f"Error generating protein summary table: {e}", exc_info=True)
@@ -1322,3 +1334,4 @@ def _generate_summary_tables(config: dict, project_root: Path, logger: logging.L
 if __name__ == "__main__":
     exit_code = main()
     sys.exit(exit_code)
+

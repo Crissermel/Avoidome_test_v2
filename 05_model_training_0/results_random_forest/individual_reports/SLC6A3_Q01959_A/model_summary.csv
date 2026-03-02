@@ -1,0 +1,20 @@
+Model Information,
+Protein,SLC6A3
+UniProt ID,Q01959
+Model Type,A
+Threshold,N/A
+Generation Time,2026-03-02T14:53:51.081182
+,
+Performance Metrics,
+Accuracy,0.7363636363636363
+F1-Macro,0.7342513278683492
+F1-Weighted,0.7363394374806367
+Precision-Macro,0.7323298977232423
+Recall-Macro,0.737439765346742
+,
+Data Summary,
+Target Bioactivity Points,1646
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,
+Expanded Bioactivity Points,

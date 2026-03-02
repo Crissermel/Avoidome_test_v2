@@ -1,0 +1,20 @@
+Model Information,
+Protein,ADRA2A
+UniProt ID,P08913
+Model Type,B
+Threshold,medium
+Generation Time,2026-03-02T14:53:51.170885
+,
+Performance Metrics,
+Accuracy,0.7452830188679245
+F1-Macro,0.7364129595304295
+F1-Weighted,0.7397663039676851
+Precision-Macro,0.7349541930937279
+Recall-Macro,0.7414362519201229
+,
+Data Summary,
+Target Bioactivity Points,1260
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,12
+Expanded Bioactivity Points,734

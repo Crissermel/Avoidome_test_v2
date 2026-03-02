@@ -1,0 +1,20 @@
+Model Information,
+Protein,NR1I3
+UniProt ID,Q14994
+Model Type,B
+Threshold,medium
+Generation Time,2026-02-17T10:19:12.108496
+,
+Performance Metrics,
+Accuracy,0.5833333333333334
+F1-Macro,0.6005291005291005
+F1-Weighted,0.6005291005291005
+Precision-Macro,0.6333333333333333
+Recall-Macro,0.5833333333333334
+,
+Data Summary,
+Target Bioactivity Points,672
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,5
+Expanded Bioactivity Points,613

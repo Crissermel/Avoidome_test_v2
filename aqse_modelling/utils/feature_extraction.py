@@ -5,7 +5,7 @@ This module provides functions for extracting compound and protein features,
 creating feature datasets, and assigning class labels.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 from typing import Dict, List, Optional, Any
 import logging
@@ -75,7 +75,7 @@ def extract_protein_features(uniprot_id: str, bioactivity_loader) -> Optional[np
     return esmc_desc
 
 
-def assign_class_labels(df: pd.DataFrame, thresholds: Dict[str, Any]) -> pd.DataFrame:
+def assign_class_labels(df: pl.DataFrame, thresholds: Dict[str, Any]) -> pl.DataFrame:
     """
     Assign class labels to bioactivity data based on pchembl_value_Mean
     Supports both 2-class and 3-class classification
@@ -96,37 +96,38 @@ def assign_class_labels(df: pd.DataFrame, thresholds: Dict[str, Any]) -> pd.Data
     
     if n_classes == 2:
         # 2-class: Low+Medium vs High (combine Low and Medium)
-        def assign_class(value):
-            if pd.isna(value):
-                return 'unknown'
-            if value <= cutoff_high:
-                return 'Low+Medium'
-            else:
-                return 'High'
+        df = df.with_columns(
+            pl.when(pl.col('pchembl_value_Mean').is_null())
+            .then(pl.lit('unknown'))
+            .when(pl.col('pchembl_value_Mean') <= cutoff_high)
+            .then(pl.lit('Low+Medium'))
+            .otherwise(pl.lit('High'))
+            .alias('class')
+        )
     else:
         # 3-class: Low, Medium, High
         cutoff_medium = thresholds.get('medium', 5.0)
-        def assign_class(value):
-            if pd.isna(value):
-                return 'unknown'
-            if value <= cutoff_medium:
-                return 'Low'
-            elif cutoff_medium < value <= cutoff_high:
-                return 'Medium'
-            else:
-                return 'High'
+        df = df.with_columns(
+            pl.when(pl.col('pchembl_value_Mean').is_null())
+            .then(pl.lit('unknown'))
+            .when(pl.col('pchembl_value_Mean') <= cutoff_medium)
+            .then(pl.lit('Low'))
+            .when((pl.col('pchembl_value_Mean') > cutoff_medium) & (pl.col('pchembl_value_Mean') <= cutoff_high))
+            .then(pl.lit('Medium'))
+            .otherwise(pl.lit('High'))
+            .alias('class')
+        )
     
-    df['class'] = df['pchembl_value_Mean'].apply(assign_class)
     return df
 
 
 def create_feature_dataset(
-    df: pd.DataFrame,
+    df: pl.DataFrame,
     uniprot_id: str,
     cached_fingerprints: Dict[str, np.ndarray],
     bioactivity_loader,
     add_esmc: bool = True
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """
     Create dataset with extracted features
     
@@ -142,7 +143,7 @@ def create_feature_dataset(
     """
     features_data = []
     
-    for idx, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         smiles = row['SMILES']
         
         # Extract compound features
@@ -171,16 +172,16 @@ def create_feature_dataset(
             'features': np.array(feature_vector, dtype=np.float32)
         })
     
-    return pd.DataFrame(features_data)
+    return pl.DataFrame(features_data)
 
 
 def extract_multi_protein_features(
-    df: pd.DataFrame,
+    df: pl.DataFrame,
     protein_ids: List[str],
     cached_fingerprints: Dict[str, np.ndarray],
     bioactivity_loader,
     add_esmc: bool = True
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """
     Extract features for data from multiple proteins
     
@@ -206,7 +207,7 @@ def extract_multi_protein_features(
             else:
                 logger.warning(f"ESM-C descriptors not available for {pid}")
     
-    for idx, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         smiles = row['SMILES']
         protein_id = row.get('accession', protein_ids[0])
         
@@ -236,4 +237,4 @@ def extract_multi_protein_features(
             'features': np.array(feature_vector, dtype=np.float32)
         })
     
-    return pd.DataFrame(features_data)
+    return pl.DataFrame(features_data)

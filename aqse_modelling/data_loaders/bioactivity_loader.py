@@ -2,7 +2,7 @@
 Bioactivity data loader.
 """
 
-import pandas as pd
+import polars as pl
 import numpy as np
 import pickle
 import os
@@ -13,6 +13,7 @@ import logging
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem import rdFingerprintGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -47,17 +48,18 @@ class BioactivityDataLoader:
         try:
             from papyrus_scripts import PapyrusDataset
             papyrus_data = PapyrusDataset(version='latest', plusplus=True)
-            self.papyrus_df = papyrus_data.to_dataframe()
+            papyrus_pd_df = papyrus_data.to_dataframe()
+            self.papyrus_df = pl.from_pandas(papyrus_pd_df)
             self.logger.info(f"Loaded {len(self.papyrus_df):,} total activities from Papyrus++")
         except Exception as e:
             self.logger.error(f"Error loading Papyrus++ dataset: {e}")
-            self.papyrus_df = pd.DataFrame()
+            self.papyrus_df = pl.DataFrame()
         
         # Load standard Papyrus dataset if needed (lazy loading - only if proteins_use_standard_papyrus is not empty)
-        self.papyrus_standard_df = pd.DataFrame()
+        self.papyrus_standard_df = pl.DataFrame()
         self._papyrus_standard_loaded = False
     
-    def calculate_morgan_fingerprints(self, unique_proteins: pd.DataFrame) -> Dict[str, Any]:
+    def calculate_morgan_fingerprints(self, unique_proteins: pl.DataFrame) -> Dict[str, Any]:
         """
         Step 0: Calculate and save Morgan fingerprints for all compounds in Papyrus database,
         only for the compounds associated with the unique protein list
@@ -68,26 +70,28 @@ class BioactivityDataLoader:
             # Use the already-loaded Papyrus dataset
             papyrus_df = self.papyrus_df
             
-            if papyrus_df.empty:
+            if papyrus_df.is_empty():
                 self.logger.error("Papyrus dataset not loaded")
                 return {}
 
             # Filter for valid SMILES
-            valid_data = papyrus_df.dropna(subset=['SMILES'])
-            valid_data = valid_data[valid_data['SMILES'] != '']
+            valid_data = papyrus_df.drop_nulls(subset=['SMILES'])
+            valid_data = valid_data.filter(pl.col('SMILES') != '')
 
             # Filter by unique protein list
-            unique_ids = set(unique_proteins['uniprot_id'])
-            valid_data = valid_data[valid_data['accession'].isin(unique_ids)]
+            unique_ids = set(unique_proteins['uniprot_id'].to_list())
+            valid_data = valid_data.filter(pl.col('accession').is_in(list(unique_ids)))
             self.logger.info(f"{len(valid_data)} activities after filtering by unique proteins")
 
             # Get unique SMILES
-            unique_smiles = valid_data['SMILES'].unique()
+            unique_smiles = valid_data['SMILES'].unique().to_list()
             self.logger.info(f"Found {len(unique_smiles)} unique SMILES to process")
 
             # Calculate Morgan fingerprints
             fingerprints = {}
             valid_count = 0
+
+            morgan_generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
             
             for i, smiles in enumerate(unique_smiles):
                 if i % 10000 == 0:
@@ -95,8 +99,8 @@ class BioactivityDataLoader:
                 try:
                     mol = Chem.MolFromSmiles(smiles)
                     if mol is not None:
-                        morgan_fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
-                        morgan_array = np.array(morgan_fp, dtype=np.float32)
+                        morgan_fp = morgan_generator.GetFingerprint(mol)
+                        morgan_array = np.array(list(morgan_fp), dtype=np.float32)
                         fingerprints[smiles] = morgan_array
                         valid_count += 1
                 except Exception as e:
@@ -107,13 +111,13 @@ class BioactivityDataLoader:
             fingerprints_file = self.fingerprints_dir / "papyrus_morgan_fingerprints.parquet"
             
             # Convert dict to DataFrame for Parquet
-            fps_df = pd.DataFrame({
+            fps_df = pl.DataFrame({
                 'SMILES': list(fingerprints.keys()),
                 'fingerprint': [fp.tolist() for fp in fingerprints.values()]  # Convert numpy array to list
             })
             
             # Save as Parquet with compression
-            fps_df.to_parquet(fingerprints_file, compression='snappy')
+            fps_df.write_parquet(fingerprints_file, compression='snappy')
             file_size_mb = fingerprints_file.stat().st_size / (1024 * 1024)
 
             self.logger.info(f"Bioactivity dataset completed: {valid_count} valid Morgan fingerprints saved to {fingerprints_file} ({file_size_mb:.2f} MB)")
@@ -135,7 +139,7 @@ class BioactivityDataLoader:
             self.logger.error(f"Error in Step 0: {e}")
             return {}
 
-    def load_morgan_fingerprints(self, unique_proteins: pd.DataFrame = None) -> Dict[str, np.ndarray]:
+    def load_morgan_fingerprints(self, unique_proteins: pl.DataFrame = None) -> Dict[str, np.ndarray]:
         """Load pre-computed Morgan fingerprints
         
         Note: The fingerprints were already filtered during calculation to only include
@@ -148,11 +152,11 @@ class BioactivityDataLoader:
         try:
             # Try to load from Parquet
             if fingerprints_file_parquet.exists():
-                fps_df = pd.read_parquet(fingerprints_file_parquet)
+                fps_df = pl.read_parquet(fingerprints_file_parquet)
                 # Convert back to dict
                 fingerprints = {
                     row['SMILES']: np.array(row['fingerprint'], dtype=np.float32)
-                    for _, row in fps_df.iterrows()
+                    for row in fps_df.iter_rows(named=True)
                 }
                 self.logger.info(f"Loaded {len(fingerprints)} Morgan fingerprints from Parquet")
                 return fingerprints
@@ -218,12 +222,13 @@ class BioactivityDataLoader:
         try:
             from papyrus_scripts import PapyrusDataset
             papyrus_data = PapyrusDataset(version='latest', plusplus=False)
-            self.papyrus_standard_df = papyrus_data.to_dataframe()
+            papyrus_pd_df = papyrus_data.to_dataframe()
+            self.papyrus_standard_df = pl.from_pandas(papyrus_pd_df)
             self._papyrus_standard_loaded = True
             self.logger.info(f"Loaded {len(self.papyrus_standard_df):,} total activities from standard Papyrus")
         except Exception as e:
             self.logger.error(f"Error loading standard Papyrus dataset: {e}")
-            self.papyrus_standard_df = pd.DataFrame()
+            self.papyrus_standard_df = pl.DataFrame()
             self._papyrus_standard_loaded = True  # Mark as loaded to avoid retrying
     
     def _build_protein_name_mapping(self):
@@ -290,7 +295,7 @@ class BioactivityDataLoader:
         
         return False
     
-    def get_filtered_papyrus(self, uniprot_ids: List[str] = None) -> pd.DataFrame:
+    def get_filtered_papyrus(self, uniprot_ids: List[str] = None) -> pl.DataFrame:
         """
         Get filtered Papyrus data for specific proteins.
         Automatically selects Papyrus++ or standard Papyrus based on config.
@@ -303,9 +308,9 @@ class BioactivityDataLoader:
         """
         if uniprot_ids is None:
             # Return all data from Papyrus++ (default)
-            if self.papyrus_df.empty:
+            if self.papyrus_df.is_empty():
                 self.logger.error("Papyrus++ dataset not loaded")
-                return pd.DataFrame()
+                return pl.DataFrame()
             return self.papyrus_df
         
         # Check if any of the requested proteins need standard Papyrus
@@ -318,33 +323,33 @@ class BioactivityDataLoader:
         if needs_standard:
             self._load_standard_papyrus()
             standard_ids = [uid for uid in uniprot_ids if self._should_use_standard_papyrus(uid)]
-            if standard_ids and not self.papyrus_standard_df.empty:
-                standard_df = self.papyrus_standard_df[self.papyrus_standard_df['accession'].isin(standard_ids)]
-                if not standard_df.empty:
+            if standard_ids and not self.papyrus_standard_df.is_empty():
+                standard_df = self.papyrus_standard_df.filter(pl.col('accession').is_in(standard_ids))
+                if not standard_df.is_empty():
                     self.logger.info(f"Using standard Papyrus for {len(standard_ids)} protein(s): {standard_ids}")
                     results.append(standard_df)
         
         # Get Papyrus++ data for remaining proteins
         if needs_plusplus:
-            if self.papyrus_df.empty:
+            if self.papyrus_df.is_empty():
                 self.logger.error("Papyrus++ dataset not loaded")
             else:
                 plusplus_ids = [uid for uid in uniprot_ids if not self._should_use_standard_papyrus(uid)]
                 if plusplus_ids:
-                    plusplus_df = self.papyrus_df[self.papyrus_df['accession'].isin(plusplus_ids)]
-                    if not plusplus_df.empty:
+                    plusplus_df = self.papyrus_df.filter(pl.col('accession').is_in(plusplus_ids))
+                    if not plusplus_df.is_empty():
                         if needs_standard:
                             self.logger.info(f"Using Papyrus++ for {len(plusplus_ids)} protein(s): {plusplus_ids}")
                         results.append(plusplus_df)
         
         # Combine results if both datasets were used
         if len(results) == 0:
-            return pd.DataFrame()
+            return pl.DataFrame()
         elif len(results) == 1:
             return results[0]
         else:
             # Combine DataFrames from both sources
-            combined_df = pd.concat(results, ignore_index=True)
+            combined_df = pl.concat(results)
             self.logger.info(f"Combined data from both Papyrus versions: {len(combined_df)} total activities")
             return combined_df
     
@@ -396,12 +401,13 @@ class BioactivityDataLoader:
             elif isinstance(esmc_data, np.ndarray):
                 esmc_embedding = esmc_data
                 
-            elif isinstance(esmc_data, pd.DataFrame):
+            elif isinstance(esmc_data, pl.DataFrame):
                 # Handle DataFrame format
                 esm_cols = [col for col in esmc_data.columns if col.startswith('esm_dim_')]
                 
                 if esm_cols:
-                    esmc_embedding = esmc_data[esm_cols].iloc[0].values
+                    esmc_embedding = esmc_data.select(esm_cols).row(0, named=False)
+                    esmc_embedding = np.array(esmc_embedding)
                 else:
                     # Don't log error here - we'll summarize missing accessions at a higher level
                     return None

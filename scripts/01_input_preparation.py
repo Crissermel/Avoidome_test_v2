@@ -7,7 +7,7 @@ It loads avoidome protein sequences and prepares them for BLAST similarity searc
 
 """
 
-import pandas as pd
+import polars as pl
 import os
 from pathlib import Path
 import logging
@@ -44,7 +44,7 @@ class AvoidomeInputPreparation:
         self.logs_dir = self.output_dir / "logs"
         self.logs_dir.mkdir(exist_ok=True)
         
-    def load_avoidome_proteins(self) -> pd.DataFrame:
+    def load_avoidome_proteins(self) -> pl.DataFrame:
         """
         Load and clean avoidome protein list
         
@@ -54,15 +54,15 @@ class AvoidomeInputPreparation:
         logger.info(f"Loading avoidome proteins from {self.avoidome_file}")
         
         try:
-            df = pd.read_csv(self.avoidome_file)
+            df = pl.read_csv(self.avoidome_file)
             logger.info(f"Loaded {len(df)} avoidome proteins")
             
             # Clean the data
-            df = df.dropna(subset=['UniProt ID'])
-            df = df[df['UniProt ID'] != 'no info']
+            df = df.drop_nulls(subset=['UniProt ID'])
+            df = df.filter(pl.col('UniProt ID') != 'no info')
             
             # Remove duplicates based on UniProt ID
-            df = df.drop_duplicates(subset=['UniProt ID'])
+            df = df.unique(subset=['UniProt ID'])
             
             logger.info(f"After cleaning: {len(df)} unique proteins with UniProt IDs")
             
@@ -123,7 +123,7 @@ class AvoidomeInputPreparation:
         
         return sequences, failed_ids
     
-    def create_fasta_files(self, df: pd.DataFrame, sequences: Dict[str, str]) -> List[str]:
+    def create_fasta_files(self, df: pl.DataFrame, sequences: Dict[str, str]) -> List[str]:
         """
         Create FASTA files for BLAST search
         
@@ -139,7 +139,7 @@ class AvoidomeInputPreparation:
         fasta_files = []
         
         # Create individual FASTA files for each protein
-        for _, row in df.iterrows():
+        for row in df.iter_rows(named=True):
             uniprot_id = row['UniProt ID']
             protein_name = row['Name']
             
@@ -162,7 +162,7 @@ class AvoidomeInputPreparation:
         # Create combined FASTA file for all proteins
         combined_fasta = self.output_dir / "avoidome_proteins_combined.fasta"
         with open(combined_fasta, 'w') as f:
-            for _, row in df.iterrows():
+            for row in df.iter_rows(named=True):
                 uniprot_id = row['UniProt ID']
                 protein_name = row['Name']
                 
@@ -179,7 +179,7 @@ class AvoidomeInputPreparation:
         
         return fasta_files
     
-    def save_summary(self, df: pd.DataFrame, sequences: Dict[str, str], failed_ids: List[str]) -> str:
+    def save_summary(self, df: pl.DataFrame, sequences: Dict[str, str], failed_ids: List[str]) -> str:
         """
         Save input preparation summary
         
@@ -204,8 +204,10 @@ class AvoidomeInputPreparation:
             f.write("Proteins with sequences:\n")
             f.write("-" * 30 + "\n")
             for uniprot_id, seq in sequences.items():
-                protein_name = df[df['UniProt ID'] == uniprot_id]['Name'].iloc[0]
-                f.write(f"{uniprot_id} ({protein_name}): {len(seq)} aa\n")
+                protein_row = df.filter(pl.col('UniProt ID') == uniprot_id)
+                if len(protein_row) > 0:
+                    protein_name = protein_row['Name'][0]
+                    f.write(f"{uniprot_id} ({protein_name}): {len(seq)} aa\n")
             
             if failed_ids:
                 f.write(f"\nFailed to fetch sequences:\n")
@@ -229,7 +231,7 @@ class AvoidomeInputPreparation:
         df = self.load_avoidome_proteins()
         
         # Get UniProt IDs
-        uniprot_ids = df['UniProt ID'].tolist()
+        uniprot_ids = df['UniProt ID'].to_list()
         
         # Fetch sequences
         sequences, failed_ids = self.fetch_protein_sequences(uniprot_ids)
@@ -241,18 +243,20 @@ class AvoidomeInputPreparation:
         summary_file = self.save_summary(df, sequences, failed_ids)
         
         # Save sequences to CSV for easy access
-        sequences_df = pd.DataFrame([
-            {
+        sequences_data = []
+        for uniprot_id, seq in sequences.items():
+            protein_row = df.filter(pl.col('UniProt ID') == uniprot_id)
+            protein_name = protein_row['Name'][0] if len(protein_row) > 0 else ''
+            sequences_data.append({
                 'uniprot_id': uniprot_id,
-                'protein_name': df[df['UniProt ID'] == uniprot_id]['Name'].iloc[0],
+                'protein_name': protein_name,
                 'sequence': seq,
                 'sequence_length': len(seq)
-            }
-            for uniprot_id, seq in sequences.items()
-        ])
+            })
         
+        sequences_df = pl.DataFrame(sequences_data)
         sequences_csv = self.output_dir / "avoidome_sequences.csv"
-        sequences_df.to_csv(sequences_csv, index=False)
+        sequences_df.write_csv(sequences_csv)
         
         logger.info("Input preparation completed successfully")
         

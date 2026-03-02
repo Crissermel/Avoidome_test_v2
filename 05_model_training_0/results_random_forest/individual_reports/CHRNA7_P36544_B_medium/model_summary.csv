@@ -1,0 +1,20 @@
+Model Information,
+Protein,CHRNA7
+UniProt ID,P36544
+Model Type,B
+Threshold,medium
+Generation Time,2026-03-02T14:53:51.350313
+,
+Performance Metrics,
+Accuracy,0.8319327731092437
+F1-Macro,0.8196969696969697
+F1-Weighted,0.8295645530939648
+Precision-Macro,0.8313008130081301
+Recall-Macro,0.8130910165484634
+,
+Data Summary,
+Target Bioactivity Points,1617
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,6
+Expanded Bioactivity Points,1022

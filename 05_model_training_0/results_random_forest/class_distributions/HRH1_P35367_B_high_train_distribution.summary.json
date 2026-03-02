@@ -1,0 +1,9 @@
+{
+  "total_samples": 1271,
+  "n_classes": 2,
+  "class_balance_ratio": 0.5368802902055623,
+  "most_common_class": "Low+Medium",
+  "most_common_count": 827,
+  "least_common_class": "High",
+  "least_common_count": 444
+}
