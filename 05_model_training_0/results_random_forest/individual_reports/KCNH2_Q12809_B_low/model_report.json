@@ -1,0 +1,112 @@
+{
+  "model_info": {
+    "protein": "KCNH2",
+    "uniprot_id": "Q12809",
+    "model_type": "B",
+    "threshold": "low",
+    "generation_timestamp": "2026-03-02T14:53:51.006737"
+  },
+  "workflow_results": {
+    "protein": "KCNH2",
+    "uniprot_id": "Q12809",
+    "model_type": "B",
+    "status": "success",
+    "n_samples": "4913",
+    "n_train_samples": "4014",
+    "n_test_samples": "899",
+    "threshold": "low",
+    "n_similar_activities": "468",
+    "n_target_activities": "4492",
+    "n_similar_proteins": "26",
+    "has_similar_proteins": true,
+    "n_total_similar_proteins": 19,
+    "n_features": "3023",
+    "similar_proteins": "N/A"
+  },
+  "metrics": {
+    "accuracy": 1.0,
+    "precision_per_class": [
+      1.0
+    ],
+    "recall_per_class": [
+      1.0
+    ],
+    "f1_per_class": [
+      1.0
+    ],
+    "support_per_class": [
+      424
+    ],
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "precision_weighted": 1.0,
+    "recall_weighted": 1.0,
+    "f1_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        424
+      ]
+    ],
+    "class_labels": [
+      "Medium",
+      "High"
+    ]
+  },
+  "class_distributions": {
+    "train": [
+      {
+        "class": "High",
+        "count": 2018,
+        "proportion": 0.502740408570005
+      },
+      {
+        "class": "Low+Medium",
+        "count": 1996,
+        "proportion": 0.497259591429995
+      }
+    ],
+    "train_summary": {
+      "total_samples": 4014,
+      "n_classes": 2,
+      "class_balance_ratio": 0.9890981169474727,
+      "most_common_class": "High",
+      "most_common_count": 2018,
+      "least_common_class": "Low+Medium",
+      "least_common_count": 1996
+    },
+    "test": [
+      {
+        "class": "Low+Medium",
+        "count": 475,
+        "proportion": 0.5283648498331479
+      },
+      {
+        "class": "High",
+        "count": 424,
+        "proportion": 0.47163515016685204
+      }
+    ],
+    "test_summary": {
+      "total_samples": 899,
+      "n_classes": 2,
+      "class_balance_ratio": 0.8926315789473684,
+      "most_common_class": "Low+Medium",
+      "most_common_count": 475,
+      "least_common_class": "High",
+      "least_common_count": 424
+    }
+  },
+  "predictions_summary": {
+    "total_predictions": 424,
+    "prediction_distribution": {
+      "High": 424
+    },
+    "confidence_stats": {
+      "mean": 1.0,
+      "std": 0.0,
+      "min": 1.0,
+      "max": 1.0
+    }
+  }
+}

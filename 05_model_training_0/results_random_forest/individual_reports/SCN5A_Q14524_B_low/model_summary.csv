@@ -1,0 +1,20 @@
+Model Information,
+Protein,SCN5A
+UniProt ID,Q14524
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:51.026773
+,
+Performance Metrics,
+Accuracy,0.8181818181818182
+F1-Macro,0.7525
+F1-Weighted,0.8104545454545455
+Precision-Macro,0.7802197802197802
+Recall-Macro,0.7361111111111112
+,
+Data Summary,
+Target Bioactivity Points,8319
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,142
+Expanded Bioactivity Points,7990

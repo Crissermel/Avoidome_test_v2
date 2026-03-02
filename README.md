@@ -1,5 +1,7 @@
 # AQSE 3-Class Classification Workflow (AQSE 3c)
 
+[![codecov](https://codecov.io/gh/<OWNER>/<REPO>/branch/main/graph/badge.svg)](https://codecov.io/gh/<OWNER>/<REPO>)
+
 ## Overview
 
 The AQSE 3-Class Classification Workflow trains QSAR models for avoidome proteins using a 3-class activity classification (High/Medium/Low) with similarity-based data expansion. The workflow supports two model architectures: Random Forest and Chemprop.
@@ -43,6 +45,20 @@ uv sync
 
 Dependencies are defined in `pyproject.toml` and locked in `uv.lock`. Required packages include: polars, pandas, numpy, Bio (Biopython), papyrus-scripts, scikit-learn, chemprop, matplotlib, seaborn, pyyaml, rdkit, torch, esm, lightning, torchmetrics.
 
+### Running Tests (UV + pytest)
+
+After syncing dependencies, you can run the test suite from the `AQSE_v3` directory:
+
+```bash
+cd AQSE_v3
+
+# Run tests
+uv run pytest
+
+# Run tests with coverage (no threshold enforcement)
+uv run pytest --cov=aqse_modelling --cov-report=term-missing --cov-report=xml
+```
+
 ## Workflow Steps
 
 The workflow consists of 5 sequential steps:
@@ -77,7 +93,7 @@ uv run python scripts/03_calculate_esmc_embeddings.py
 uv run python scripts/04_bioactivity_threshold_optimization.py
 
 # Step 5: Model training
-uv run python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py --config config.yaml
+uv run python scripts/05_AQSE_3c_2c_clf_th_op_parameter_optimization.py 
 ```
 
 ---

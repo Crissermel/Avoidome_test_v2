@@ -1,0 +1,30 @@
+{
+  "accuracy": 1.0,
+  "precision_per_class": [
+    1.0
+  ],
+  "recall_per_class": [
+    1.0
+  ],
+  "f1_per_class": [
+    1.0
+  ],
+  "support_per_class": [
+    101
+  ],
+  "precision_macro": 1.0,
+  "recall_macro": 1.0,
+  "f1_macro": 1.0,
+  "precision_weighted": 1.0,
+  "recall_weighted": 1.0,
+  "f1_weighted": 1.0,
+  "confusion_matrix": [
+    [
+      101
+    ]
+  ],
+  "class_labels": [
+    "Medium",
+    "High"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "model_info": {
+    "protein": "CHRNA7",
+    "uniprot_id": "P36544",
+    "model_type": "B",
+    "threshold": "high",
+    "generation_timestamp": "2026-03-02T14:53:51.340258"
+  },
+  "workflow_results": {
+    "protein": "CHRNA7",
+    "uniprot_id": "P36544",
+    "model_type": "B",
+    "status": "success",
+    "n_samples": "1617",
+    "n_train_samples": "1498",
+    "n_test_samples": "119",
+    "threshold": "high",
+    "n_similar_activities": "1022",
+    "n_target_activities": "595",
+    "n_similar_proteins": "5",
+    "has_similar_proteins": true,
+    "n_total_similar_proteins": 75,
+    "n_features": "3023",
+    "similar_proteins": "N/A"
+  },
+  "metrics": {
+    "accuracy": 0.8319327731092437,
+    "precision_per_class": [
+      0.8333333333333334,
+      0.8292682926829268
+    ],
+    "recall_per_class": [
+      0.9027777777777778,
+      0.723404255319149
+    ],
+    "f1_per_class": [
+      0.8666666666666667,
+      0.7727272727272727
+    ],
+    "support_per_class": [
+      72,
+      47
+    ],
+    "precision_macro": 0.8313008130081301,
+    "recall_macro": 0.8130910165484634,
+    "f1_macro": 0.8196969696969697,
+    "precision_weighted": 0.83172781307645,
+    "recall_weighted": 0.8319327731092437,
+    "f1_weighted": 0.8295645530939648,
+    "confusion_matrix": [
+      [
+        65,
+        7
+      ],
+      [
+        13,
+        34
+      ]
+    ],
+    "class_labels": [
+      "Low+Medium",
+      "High"
+    ]
+  },
+  "class_distributions": {
+    "train": [
+      {
+        "class": "High",
+        "count": 788,
+        "proportion": 0.5260347129506008
+      },
+      {
+        "class": "Low+Medium",
+        "count": 710,
+        "proportion": 0.47396528704939916
+      }
+    ],
+    "train_summary": {
+      "total_samples": 1498,
+      "n_classes": 2,
+      "class_balance_ratio": 0.9010152284263959,
+      "most_common_class": "High",
+      "most_common_count": 788,
+      "least_common_class": "Low+Medium",
+      "least_common_count": 710
+    },
+    "test": [
+      {
+        "class": "Low+Medium",
+        "count": 72,
+        "proportion": 0.6050420168067226
+      },
+      {
+        "class": "High",
+        "count": 47,
+        "proportion": 0.3949579831932773
+      }
+    ],
+    "test_summary": {
+      "total_samples": 119,
+      "n_classes": 2,
+      "class_balance_ratio": 0.6527777777777778,
+      "most_common_class": "Low+Medium",
+      "most_common_count": 72,
+      "least_common_class": "High",
+      "least_common_count": 47
+    }
+  },
+  "predictions_summary": {
+    "total_predictions": 119,
+    "prediction_distribution": {
+      "High": 41,
+      "Low+Medium": 78
+    },
+    "confidence_stats": {
+      "mean": 0.8552941176470588,
+      "std": 0.14024641467613874,
+      "min": 0.5,
+      "max": 1.0
+    }
+  }
+}

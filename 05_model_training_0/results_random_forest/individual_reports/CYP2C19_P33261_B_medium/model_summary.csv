@@ -1,0 +1,20 @@
+Model Information,
+Protein,CYP2C19
+UniProt ID,P33261
+Model Type,B
+Threshold,medium
+Generation Time,2026-03-02T14:53:50.790054
+,
+Performance Metrics,
+Accuracy,0.6060606060606061
+F1-Macro,0.5807857193056435
+F1-Weighted,0.601217743532734
+Precision-Macro,0.6703703703703704
+Recall-Macro,0.5876068376068376
+,
+Data Summary,
+Target Bioactivity Points,802
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,16
+Expanded Bioactivity Points,637

@@ -46,43 +46,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import ESM-C embedding function
-# NOTE: This requires the external 'esmc' package to be installed.
+# NOTE: This requires the external 'esm' (ESM-C) package to be installed.
 # This is the only external dependency for Step 3 (ESM-C descriptor calculation).
 # If ESM-C descriptors are pre-cached, Step 3 can be skipped entirely.
-
-# Add project root to Python path to find single_esmc_embeddings.py
-script_dir = Path(__file__).parent.absolute()
-project_root = script_dir.parent.absolute()
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-    logger.debug(f"Added project root to Python path: {project_root}")
-
-# Check for environment variable (optional - for custom esmc installation paths)
-esm_module_path = None
-if os.getenv('ESM_MODULE_PATH'):
-    esm_module_path = Path(os.getenv('ESM_MODULE_PATH')).expanduser().resolve()
-    if esm_module_path.exists():
-        sys.path.insert(0, str(esm_module_path))
-        logger.info(f"Using ESM module path from ESM_MODULE_PATH: {esm_module_path}")
-
 try:
-    from single_esmc_embeddings import get_single_esmc_embedding
-    logger.info("Successfully imported get_single_esmc_embedding from single_esmc_embeddings")
+    from aqse_modelling.utils.single_esmc_embeddings import get_single_esmc_embedding
+    logger.info("Successfully imported get_single_esmc_embedding from aqse_modelling.utils.single_esmc_embeddings")
 except ImportError:
-    logger.error("Could not import get_single_esmc_embedding from single_esmc_embeddings")
+    logger.error("Could not import get_single_esmc_embedding from aqse_modelling.utils.single_esmc_embeddings")
     logger.error("")
-    logger.error("REQUIREMENT: The 'esmc' package must be installed to calculate ESM-C embeddings.")
-    logger.error("This is an external dependency. To install:")
-    logger.error("  1. Activate your esmc conda environment: conda activate esmc")
-    logger.error("  2. Ensure the esmc package is installed in that environment")
+    logger.error("REQUIREMENT: The 'esm' package (ESM-C) must be installed to calculate ESM-C embeddings.")
+    logger.error("Install it in your active UV/virtual environment, e.g.: pip install esm")
     logger.error("")
     logger.error("Alternatively, if ESM-C descriptors are already cached in 03_esmc_embeddings/,")
     logger.error("you can skip Step 3 entirely - Step 5 will use the cached descriptors.")
-    logger.error("")
-    logger.error("If you have a custom esmc installation, set ESM_MODULE_PATH environment variable")
-    logger.error("to point to the directory containing single_esmc_embeddings.py")
     raise
-
 
 def load_config(config_path: str) -> dict:
     """Load configuration from YAML file"""

@@ -1,0 +1,20 @@
+Model Information,
+Protein,MAOA
+UniProt ID,P21397
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:50.899660
+,
+Performance Metrics,
+Accuracy,0.6592920353982301
+F1-Macro,0.6443121693121693
+F1-Weighted,0.6567302289647423
+Precision-Macro,0.6543154392925035
+Recall-Macro,0.6374513514879565
+,
+Data Summary,
+Target Bioactivity Points,4609
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,26
+Expanded Bioactivity Points,3501

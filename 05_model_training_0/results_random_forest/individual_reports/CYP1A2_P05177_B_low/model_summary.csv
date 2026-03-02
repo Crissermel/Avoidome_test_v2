@@ -1,0 +1,20 @@
+Model Information,
+Protein,CYP1A2
+UniProt ID,P05177
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:50.749436
+,
+Performance Metrics,
+Accuracy,0.6060606060606061
+F1-Macro,0.5961084529505583
+F1-Weighted,0.5967812092214005
+Precision-Macro,0.5924183006535948
+Recall-Macro,0.6069841269841271
+,
+Data Summary,
+Target Bioactivity Points,3857
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,34
+Expanded Bioactivity Points,3530

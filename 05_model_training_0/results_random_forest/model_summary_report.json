@@ -1,0 +1,31 @@
+{
+  "generation_timestamp": "2026-02-11T15:36:31.500560",
+  "total_models_attempted": 171,
+  "successful_models": 118,
+  "failed_models": 53,
+  "success_rate": 0.6900584795321637,
+  "model_type_breakdown": {
+    "model_a": 41,
+    "model_b": 123
+  },
+  "status_breakdown": {
+    "success": 118,
+    "insufficient_data": 20,
+    "insufficient_features": 15,
+    "no_thresholds": 7,
+    "error": 6,
+    "no_similar_proteins": 5
+  },
+  "model_b_threshold_breakdown": {
+    "high": 41,
+    "medium": 41,
+    "low": 41
+  },
+  "results_directory": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training/results_random_forest",
+  "subdirectories": {
+    "models": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training/results_random_forest/models",
+    "metrics": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training/results_random_forest/metrics",
+    "predictions": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training/results_random_forest/predictions",
+    "class_distributions": "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/05_model_training/results_random_forest/class_distributions"
+  }
+}

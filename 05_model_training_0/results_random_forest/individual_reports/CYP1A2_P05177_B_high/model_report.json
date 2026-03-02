@@ -1,0 +1,145 @@
+{
+  "model_info": {
+    "protein": "CYP1A2",
+    "uniprot_id": "P05177",
+    "model_type": "B",
+    "threshold": "high",
+    "generation_timestamp": "2026-03-02T14:53:50.702626"
+  },
+  "workflow_results": {
+    "protein": "CYP1A2",
+    "uniprot_id": "P05177",
+    "model_type": "B",
+    "status": "success",
+    "n_samples": "540",
+    "n_train_samples": "474",
+    "n_test_samples": "66",
+    "threshold": "high",
+    "n_similar_activities": "211",
+    "n_target_activities": "329",
+    "n_similar_proteins": "3",
+    "has_similar_proteins": true,
+    "n_total_similar_proteins": 33,
+    "n_features": "3023",
+    "similar_proteins": "N/A"
+  },
+  "metrics": {
+    "accuracy": 0.6212121212121212,
+    "precision_per_class": [
+      0.6666666666666666,
+      0.5,
+      0.6666666666666666
+    ],
+    "recall_per_class": [
+      0.64,
+      0.42857142857142855,
+      0.8
+    ],
+    "f1_per_class": [
+      0.6530612244897959,
+      0.46153846153846156,
+      0.7272727272727273
+    ],
+    "support_per_class": [
+      25,
+      21,
+      20
+    ],
+    "precision_macro": 0.611111111111111,
+    "recall_macro": 0.6228571428571429,
+    "f1_macro": 0.6139574711003283,
+    "precision_weighted": 0.6136363636363636,
+    "recall_weighted": 0.6212121212121212,
+    "f1_weighted": 0.6146104977273809,
+    "confusion_matrix": [
+      [
+        16,
+        7,
+        2
+      ],
+      [
+        6,
+        9,
+        6
+      ],
+      [
+        2,
+        2,
+        16
+      ]
+    ],
+    "class_labels": [
+      "Low",
+      "Medium",
+      "High"
+    ]
+  },
+  "class_distributions": {
+    "train": [
+      {
+        "class": "Medium",
+        "count": 162,
+        "proportion": 0.34177215189873417
+      },
+      {
+        "class": "High",
+        "count": 160,
+        "proportion": 0.33755274261603374
+      },
+      {
+        "class": "Low",
+        "count": 152,
+        "proportion": 0.32067510548523204
+      }
+    ],
+    "train_summary": {
+      "total_samples": 474,
+      "n_classes": 3,
+      "class_balance_ratio": 0.9382716049382716,
+      "most_common_class": "Medium",
+      "most_common_count": 162,
+      "least_common_class": "Low",
+      "least_common_count": 152
+    },
+    "test": [
+      {
+        "class": "Low",
+        "count": 25,
+        "proportion": 0.3787878787878788
+      },
+      {
+        "class": "Medium",
+        "count": 21,
+        "proportion": 0.3181818181818182
+      },
+      {
+        "class": "High",
+        "count": 20,
+        "proportion": 0.30303030303030304
+      }
+    ],
+    "test_summary": {
+      "total_samples": 66,
+      "n_classes": 3,
+      "class_balance_ratio": 0.8,
+      "most_common_class": "Low",
+      "most_common_count": 25,
+      "least_common_class": "High",
+      "least_common_count": 20
+    }
+  },
+  "predictions_summary": {
+    "total_predictions": 66,
+    "prediction_distribution": {
+      "Medium": 16,
+      "High": 27,
+      "Low": 23
+    },
+    "confidence_stats": {
+      "mean": 0.6542727272727273,
+      "std": 0.19728242507824978,
+      "min": 0.338,
+      "max": 0.966
+    }
+  }
+}

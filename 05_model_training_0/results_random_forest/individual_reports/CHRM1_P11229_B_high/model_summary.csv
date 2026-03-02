@@ -1,0 +1,20 @@
+Model Information,
+Protein,CHRM1
+UniProt ID,P11229
+Model Type,B
+Threshold,high
+Generation Time,2026-03-02T14:53:51.263132
+,
+Performance Metrics,
+Accuracy,0.6470588235294118
+F1-Macro,0.650507873234606
+F1-Weighted,0.6455380508979405
+Precision-Macro,0.6487558817993601
+Recall-Macro,0.6527172597434036
+,
+Data Summary,
+Target Bioactivity Points,1383
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,7
+Expanded Bioactivity Points,280

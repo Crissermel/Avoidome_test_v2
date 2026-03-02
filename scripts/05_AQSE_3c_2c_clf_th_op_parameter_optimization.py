@@ -451,8 +451,7 @@ def train_model_with_reporting(
             'n_train_samples': train_results.get('n_train_samples'),
             'n_test_samples': train_results.get('n_test_samples'),
             'n_target_bioactivity_datapoints': len(test_df) + len(train_df),
-            'n_features': train_results.get('feature_dimensions', 'N/A'),
-            'similar_proteins': 'N/A'  # Will be filled by caller if needed
+            'n_features': train_results.get('feature_dimensions', 'N/A')
         }
         
         # End MLflow run successfully
@@ -1115,6 +1114,7 @@ def main():
                     )
                     
                     threshold_result = {
+                        **train_results_b,
                         'status': 'complete',
                         'n_train': len(train_features),
                         'n_test': len(test_features),
@@ -1122,8 +1122,7 @@ def main():
                         'n_similar_activities': len(similar_data),
                         'n_target_activities': len(target_data),
                         'similar_proteins': similar_proteins_thresh,
-                        'n_features': train_results_b.get('n_features', 'N/A'),
-                        **train_results_b
+                        'n_features': train_results_b.get('n_features', 'N/A')
                     }
                     
                     # Display completion status for this threshold

@@ -171,6 +171,48 @@ def load_model_metrics(workflow_results_file: str, metrics_dir: Optional[Path] =
             except Exception as e:
                 logger.debug(f"Error loading {metrics_file}: {e}")
     
+    # If no metrics were loaded from JSON files, fall back to the
+    # Random Forest comprehensive_protein_report.csv (Polars-based).
+    if not metrics_dict:
+        try:
+            workflow_path = Path(workflow_results_file)
+            output_dir = workflow_path.parent
+            rf_report_path = output_dir / "results_random_forest" / "comprehensive_protein_report.csv"
+
+            if rf_report_path.exists():
+                logger.info(f"Loading model metrics from {rf_report_path}")
+                df = pl.read_csv(rf_report_path)
+
+                # Keep only successful runs with a valid F1 macro value
+                df = df.filter(
+                    (pl.col("status") == "success")
+                    & pl.col("f1_macro").is_not_null()
+                )
+
+                for row in df.to_dicts():
+                    uniprot_id = str(row.get("uniprot_id", "")).strip()
+                    if not uniprot_id:
+                        continue
+
+                    model_type = str(row.get("model_type", "")).strip() or "A"
+
+                    threshold = row.get("threshold")
+                    if threshold is not None:
+                        threshold = str(threshold).strip()
+                        if threshold in ("", "N/A"):
+                            threshold = None
+
+                    f1_macro = row.get("f1_macro")
+                    if f1_macro is None or (isinstance(f1_macro, float) and np.isnan(f1_macro)):
+                        continue
+
+                    key = (uniprot_id, model_type, threshold)
+                    metrics_dict[key] = {
+                        "f1_macro": float(f1_macro)
+                    }
+        except Exception as e:
+            logger.debug(f"Could not load metrics from comprehensive_protein_report.csv: {e}")
+
     return metrics_dict
 
 

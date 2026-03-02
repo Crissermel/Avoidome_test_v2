@@ -1,0 +1,20 @@
+Model Information,
+Protein,HRH1
+UniProt ID,P35367
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:51.386735
+,
+Performance Metrics,
+Accuracy,1.0
+F1-Macro,1.0
+F1-Weighted,1.0
+Precision-Macro,1.0
+Recall-Macro,1.0
+,
+Data Summary,
+Target Bioactivity Points,91904
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,379
+Expanded Bioactivity Points,91313

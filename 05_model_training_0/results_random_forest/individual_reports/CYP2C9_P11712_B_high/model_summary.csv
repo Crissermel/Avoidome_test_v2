@@ -1,0 +1,20 @@
+Model Information,
+Protein,CYP2C9
+UniProt ID,P11712
+Model Type,B
+Threshold,high
+Generation Time,2026-03-02T14:53:50.764115
+,
+Performance Metrics,
+Accuracy,0.5425531914893617
+F1-Macro,0.5379841152869892
+F1-Weighted,0.5415732451120274
+Precision-Macro,0.5394179894179895
+Recall-Macro,0.5383512544802868
+,
+Data Summary,
+Target Bioactivity Points,671
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,5
+Expanded Bioactivity Points,205

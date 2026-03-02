@@ -1,0 +1,20 @@
+Model Information,
+Protein,CYP3A4
+UniProt ID,P08684
+Model Type,B
+Threshold,low
+Generation Time,2026-03-02T14:53:50.857439
+,
+Performance Metrics,
+Accuracy,0.6438848920863309
+F1-Macro,0.6479541624536568
+F1-Weighted,0.6452696568730859
+Precision-Macro,0.6518587232872948
+Recall-Macro,0.6475702131930545
+,
+Data Summary,
+Target Bioactivity Points,3285
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,19
+Expanded Bioactivity Points,1898

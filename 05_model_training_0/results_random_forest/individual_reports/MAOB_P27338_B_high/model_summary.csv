@@ -1,0 +1,20 @@
+Model Information,
+Protein,MAOB
+UniProt ID,P27338
+Model Type,B
+Threshold,high
+Generation Time,2026-03-02T14:53:50.911520
+,
+Performance Metrics,
+Accuracy,0.7335526315789473
+F1-Macro,0.7235998490575692
+F1-Weighted,0.7343364625947892
+Precision-Macro,0.7272189104156318
+Recall-Macro,0.7216054836252855
+,
+Data Summary,
+Target Bioactivity Points,3589
+Train Samples,N/A
+Test Samples,N/A
+Expanded Proteins,7
+Expanded Bioactivity Points,2070

@@ -1,0 +1,15 @@
+SMILES,accession,pchembl_value_Mean,class,features,predicted_class,predicted_class_int,prob_low,prob_medium,prob_high,max_prob,confidence
+CC(C)(c1ccccc1)N1CCCCC1,P20813,5.92,High,"[ 0.          0.          1.         ... -0.01180461 -0.04150439
+ -0.01727134]",Medium,1,0.1,0.64,0.26,0.64,0.64
+CCC(=C(c1ccccc1)c1ccc(OCCN(C)C)cc1)c1ccccc1,P20813,6.05,High,"[ 0.          0.          1.         ... -0.01180461 -0.04150439
+ -0.01727134]",Medium,1,0.154,0.622,0.224,0.622,0.622
+COc1cccc(-c2nc(SC)c3ccccc3n2)c1,P20813,4.5,Low,"[ 0.          0.          0.         ... -0.01180461 -0.04150439
+ -0.01727134]",Low,0,0.64,0.202,0.158,0.64,0.64
+OC(CC1c2c(Cl)cccc2-c2cncn21)C1CCCCC1,P20813,5.32,Medium,"[ 0.          1.          1.         ... -0.01180461 -0.04150439
+ -0.01727134]",Medium,1,0.214,0.74,0.046,0.74,0.74
+O=C(C1CCCCC1)N1CCC(C(O)CC2c3ccccc3-c3cncn32)CC1,P20813,4.21,Low,"[ 0.          1.          1.         ... -0.01180461 -0.04150439
+ -0.01727134]",Low,0,0.722,0.254,0.024,0.722,0.722
+CSCc1ccc(-c2cccnc2)o1,P20813,4.33,Low,"[ 0.          0.          0.         ... -0.01180461 -0.04150439
+ -0.01727134]",High,2,0.104,0.32,0.576,0.576,0.576
+CC1CCC2C(C)C(=O)OC3OC4(C)CCC1C32OO4,P20813,5.113333333333333,Medium,"[ 0.          0.          0.         ... -0.01180461 -0.04150439
+ -0.01727134]",Medium,1,0.21,0.404,0.386,0.404,0.404
