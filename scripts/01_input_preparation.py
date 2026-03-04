@@ -13,6 +13,7 @@ from pathlib import Path
 import logging
 from typing import List, Dict, Tuple
 import requests
+import yaml
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -30,7 +31,7 @@ class AvoidomeInputPreparation:
         Initialize the input preparation class
         
         Args:
-            avoidome_file: Path to avoidome_prot_list.csv
+            avoidome_file: Path to input_clean.csv
             output_dir: Output directory for prepared files
         """
         self.avoidome_file = avoidome_file
@@ -46,23 +47,39 @@ class AvoidomeInputPreparation:
         
     def load_avoidome_proteins(self) -> pl.DataFrame:
         """
-        Load and clean avoidome protein list
+        Load and clean avoidome protein list from input_clean.csv.
+        Expected columns: uniprot_id, protein_name, alternative_names (optional).
+        ChEMBL_target is optional; only uniprot_id is required.
         
         Returns:
-            DataFrame with avoidome proteins
+            DataFrame with uniprot_id, protein_name, alternative_names
         """
         logger.info(f"Loading avoidome proteins from {self.avoidome_file}")
         
         try:
             df = pl.read_csv(self.avoidome_file)
+            rename_dict = {col: col.strip() for col in df.columns}
+            df = df.rename(rename_dict)
+            if 'uniprot_id' not in df.columns:
+                raise ValueError("input_clean.csv must have a 'uniprot_id' column.")
             logger.info(f"Loaded {len(df)} avoidome proteins")
             
-            # Clean the data
-            df = df.drop_nulls(subset=['UniProt ID'])
-            df = df.filter(pl.col('UniProt ID') != 'no info')
+            name_col = 'protein_name' if 'protein_name' in df.columns else 'gene_name'
+            alt_col = 'alternative_names' if 'alternative_names' in df.columns else None
+            select_exprs = [
+                pl.col('uniprot_id'),
+                pl.col(name_col).alias('protein_name'),
+            ]
+            if alt_col and alt_col in df.columns:
+                select_exprs.append(pl.col(alt_col).fill_null('').alias('alternative_names'))
+            else:
+                select_exprs.append(pl.lit('').alias('alternative_names'))
+            df = df.select(select_exprs)
             
-            # Remove duplicates based on UniProt ID
-            df = df.unique(subset=['UniProt ID'])
+            df = df.drop_nulls(subset=['uniprot_id'])
+            df = df.filter(pl.col('uniprot_id').cast(pl.Utf8) != '')
+            df = df.filter(pl.col('uniprot_id').cast(pl.Utf8) != 'no info')
+            df = df.unique(subset=['uniprot_id'])
             
             logger.info(f"After cleaning: {len(df)} unique proteins with UniProt IDs")
             
@@ -138,17 +155,17 @@ class AvoidomeInputPreparation:
         
         fasta_files = []
         
-        # Create individual FASTA files for each protein
+        # Create individual FASTA files for each protein (df has uniprot_id, protein_name, alternative_names)
         for row in df.iter_rows(named=True):
-            uniprot_id = row['UniProt ID']
-            protein_name = row['Name']
+            uniprot_id = row['uniprot_id']
+            protein_name = row['protein_name']
             
             if uniprot_id in sequences:
                 # Create FASTA record
                 seq_record = SeqRecord(
                     Seq(sequences[uniprot_id]),
                     id=uniprot_id,
-                    description=f"{protein_name} - {row.get('Alternative Names', '')}"
+                    description=f"{protein_name} - {row.get('alternative_names', '')}"
                 )
                 
                 # Write to file
@@ -163,14 +180,14 @@ class AvoidomeInputPreparation:
         combined_fasta = self.output_dir / "avoidome_proteins_combined.fasta"
         with open(combined_fasta, 'w') as f:
             for row in df.iter_rows(named=True):
-                uniprot_id = row['UniProt ID']
-                protein_name = row['Name']
+                uniprot_id = row['uniprot_id']
+                protein_name = row['protein_name']
                 
                 if uniprot_id in sequences:
                     seq_record = SeqRecord(
                         Seq(sequences[uniprot_id]),
                         id=uniprot_id,
-                        description=f"{protein_name} - {row.get('Alternative Names', '')}"
+                        description=f"{protein_name} - {row.get('alternative_names', '')}"
                     )
                     SeqIO.write(seq_record, f, 'fasta')
         
@@ -204,9 +221,9 @@ class AvoidomeInputPreparation:
             f.write("Proteins with sequences:\n")
             f.write("-" * 30 + "\n")
             for uniprot_id, seq in sequences.items():
-                protein_row = df.filter(pl.col('UniProt ID') == uniprot_id)
+                protein_row = df.filter(pl.col('uniprot_id') == uniprot_id)
                 if len(protein_row) > 0:
-                    protein_name = protein_row['Name'][0]
+                    protein_name = protein_row['protein_name'][0]
                     f.write(f"{uniprot_id} ({protein_name}): {len(seq)} aa\n")
             
             if failed_ids:
@@ -231,7 +248,7 @@ class AvoidomeInputPreparation:
         df = self.load_avoidome_proteins()
         
         # Get UniProt IDs
-        uniprot_ids = df['UniProt ID'].to_list()
+        uniprot_ids = df['uniprot_id'].to_list()
         
         # Fetch sequences
         sequences, failed_ids = self.fetch_protein_sequences(uniprot_ids)
@@ -245,8 +262,8 @@ class AvoidomeInputPreparation:
         # Save sequences to CSV for easy access
         sequences_data = []
         for uniprot_id, seq in sequences.items():
-            protein_row = df.filter(pl.col('UniProt ID') == uniprot_id)
-            protein_name = protein_row['Name'][0] if len(protein_row) > 0 else ''
+            protein_row = df.filter(pl.col('uniprot_id') == uniprot_id)
+            protein_name = protein_row['protein_name'][0] if len(protein_row) > 0 else ''
             sequences_data.append({
                 'uniprot_id': uniprot_id,
                 'protein_name': protein_name,
@@ -267,39 +284,51 @@ class AvoidomeInputPreparation:
             'failed_ids': failed_ids
         }
 
+def load_config(config_path: str) -> dict:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+
 def main():
     """Main function to run input preparation"""
     
-    # Parse command line arguments
+    # Optional: override config file path via CLI or environment
     parser = argparse.ArgumentParser(description='AQSE Workflow - Step 1: Input Preparation')
-    parser.add_argument('--avoidome-file', type=str, 
-                       default=None,
-                       help='Path to avoidome_prot_list.csv file. If not provided, looks for avoidome_prot_list.csv in script directory.')
-    parser.add_argument('--output-dir', type=str,
-                       default=None,
-                       help='Output directory for prepared files. If not provided, uses script directory.')
+    parser.add_argument('--config', type=str, default=None,
+                        help='Path to config.yaml. If not provided, uses CONFIG_FILE env or project root config.yaml.')
     args = parser.parse_args()
     
     # Get project root directory (parent of scripts directory)
     script_dir = Path(__file__).parent.absolute()
     project_root = script_dir.parent.absolute()
     
-    # Set up paths - use command line args, environment variables, or defaults
-    if args.avoidome_file:
-        avoidome_file = Path(args.avoidome_file).expanduser().resolve()
-    elif os.getenv('AVOIDOME_FILE'):
-        avoidome_file = Path(os.getenv('AVOIDOME_FILE')).expanduser().resolve()
+    # Resolve config file path
+    if args.config:
+        config_path = Path(args.config).expanduser().resolve()
+    elif os.getenv('CONFIG_FILE'):
+        config_path = Path(os.getenv('CONFIG_FILE')).expanduser().resolve()
     else:
-        # Default: look for avoidome_prot_list.csv in data directory
-        avoidome_file = project_root / "data" / "avoidome_prot_list.csv"
+        config_path = project_root / "config.yaml"
     
-    if args.output_dir:
-        output_dir = Path(args.output_dir).expanduser().resolve()
-    elif os.getenv('OUTPUT_DIR'):
-        output_dir = Path(os.getenv('OUTPUT_DIR')).expanduser().resolve()
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    logger.info(f"Using config file: {config_path}")
+    config = load_config(str(config_path))
+    config_dir = config_path.parent
+    
+    # Get avoidome_file from config and resolve to absolute path
+    avoidome_file = config.get('avoidome_file')
+    if not avoidome_file:
+        raise ValueError("No 'avoidome_file' found in config.yaml")
+    if not Path(avoidome_file).is_absolute():
+        avoidome_file = (config_dir / avoidome_file).resolve()
     else:
-        # Default: create 01_input_preparation in project root
-        output_dir = project_root / "01_input_preparation"
+        avoidome_file = Path(avoidome_file).expanduser().resolve()
+    
+    # Step 1 output directory: fixed relative to project root
+    output_dir = project_root / "01_input_preparation"
     
     # Validate input file exists
     if not avoidome_file.exists():
@@ -307,6 +336,14 @@ def main():
     
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Add file handler so logs go to both stderr and a log file in the step output directory
+    log_file = output_dir / "run.log"
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    file_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(file_handler)
+    logger.info(f"Logging to {log_file}")
     
     logger.info(f"Using avoidome file: {avoidome_file}")
     logger.info(f"Using output directory: {output_dir}")

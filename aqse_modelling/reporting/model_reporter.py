@@ -276,8 +276,8 @@ class ModelReporter:
                     'status': status
                 }
                 
-                # Load detailed metrics if model was successful
-                if status == 'success':
+                # Load detailed metrics if model was successful (Model A) or complete (Model B)
+                if status in ('success', 'complete'):
                     # Try to load metrics file
                     metrics_file = self._find_metrics_file(protein, uniprot_id, model_type, threshold)
                     if metrics_file and metrics_file.exists():

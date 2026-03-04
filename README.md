@@ -107,10 +107,14 @@ Fetches protein sequences from UniProt and prepares FASTA files for similarity s
 `scripts/01_input_preparation.py`
 
 ### Inputs
-- **data/avoidome_prot_list.csv**: CSV file with avoidome proteins containing:
-  - `Name_2`: Protein name
-  - `UniProt ID`: UniProt identifier
-  - `ChEMBL_target`: ChEMBL target identifier
+- **data/input_clean.csv**: CSV file with avoidome proteins containing:
+  - `gene_name`: Gene/short name (e.g. CYP3A4)
+  - `protein_name`: Full protein name
+  - `alternative_names`: Alternative identifiers
+  - `uniprot_id`: UniProt identifier (required)
+  - `protein_family`: Protein family (used in Step 4 for cutoff assignment)
+  - `protein_subfamily`: Optional subfamily
+  - `ChEMBL_target`: ChEMBL target identifier (optional; rows with missing ChEMBL are still processed)
 
 ### Outputs
 All outputs are organized in the `01_input_preparation/` directory:
@@ -199,9 +203,14 @@ Analyzes class imbalances and optimizes activity thresholds for 2-class and 3-cl
 `scripts/04_bioactivity_threshold_optimization.py`
 
 ### Inputs
-- **data/avoidome_cutoff_table.csv**: Activity thresholds for each protein
+- **data/input_clean.csv**: Protein list (same as Step 1; must include `protein_family` for cutoff assignment)
+- **data/protein_family_bioactivity_bin.csv**: Per-family activity bin thresholds:
+  - `protein_family`: Family name (must match `protein_family` in input_clean.csv)
+  - `bioactivity_high`, `bioactivity_medium`: pChEMBL cutoffs for High/Medium classes (joined to each protein by family)
 - **02_similarity_search/similarity_search_summary.csv**: Similarity search results (from Step 2)
 - **Papyrus database**: Bioactivity data (loaded automatically)
+
+The script builds a per-protein cutoff table by joining `input_clean.csv` with `protein_family_bioactivity_bin.csv` on `protein_family`. Proteins whose family is not in the bin file are excluded from analysis.
 
 ### Outputs
 - **04_bioactivity_threshold_optimization/**: Directory containing analysis results
@@ -231,8 +240,9 @@ Trains QSAR classification models using the AQSE approach with two model types:
 Orchestrates the workflow using modular components from `aqse_modelling/`.
 
 ### Inputs
-- **config.yaml**: Configuration file with paths, model type, and hyperparameters
-- **data/avoidome_cutoff_table.csv**: Activity thresholds (`name2_entry`, `uniprot_id`, `cutoff_high`, `cutoff_medium`)
+- **config.yaml**: Configuration file with paths, model type, and hyperparameters. Key paths: `avoidome_file` (e.g. **data/input_clean.csv**), `protein_family_bioactivity_bin_file` (e.g. **data/protein_family_bioactivity_bin.csv**), `activity_thresholds_file` (output of Step 4).
+- **data/input_clean.csv**: Protein list.
+- **04_bioactivity_threshold_optimization/class_imbalance_summary_optimized.csv**: Per-protein activity thresholds (`name2_entry`, `uniprot_id`, `cutoff_high`, `cutoff_medium`), produced by Step 4.
 - **Papyrus database**: Bioactivity data (Papyrus++ default, standard Papyrus available via config)
 
 ### Outputs

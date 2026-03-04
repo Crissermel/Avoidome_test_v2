@@ -9,11 +9,6 @@ It covers:
 3. Coverage reporting + badge in `AQSE_v3/README.md`
 4. Merge protection for `main` (only merge when tests pass)
 
-All examples assume:
-
-- Python **3.12** for `AQSE_v3`
-- Dependency management via **UV**
-- Core package: `aqse_modelling`
 
 ---
 

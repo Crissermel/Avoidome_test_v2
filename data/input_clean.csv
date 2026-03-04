@@ -1,0 +1,54 @@
+﻿gene_name,protein_name,alternative_names,uniprot_id,protein_family,protein_subfamily,ChEMBL_target
+ADH1A,Alcohol dehydrogenase 1A,"ADH1A_HUMAN, Alcohol dehydrogenase 1A",P07327,Non-IDG Family Targets,Enzyme,CHEMBL1970
+ADRA1A,Adrenergic receptor A1,"ADA1A_HUMAN, Alpha-1A adrenergic receptor",P35348,GPCR,,CHEMBL229
+ADRA2A,Adrenergic receptor A2,"ADA2A_HUMAN, Alpha-2A adrenergic receptor",P08913,GPCR,,CHEMBL1867
+ADRB1,Adrenergic receptor B1,"ADRB1_HUMAN, Beta-1 adrenergic receptor",P08588,GPCR,,CHEMBL213
+ADRB2,Adrenergic receptor B2,"ADRB2_HUMAN, Beta-2 adrenergic receptor",P07550,GPCR,,CHEMBL210
+AHR,AHR,"AHR_HUMAN, Aryl hydrocarbon receptor",P35869,Nuclear receptor,,CHEMBL3201
+AKR7A3,Aldehyde reductase,"ARK73_HUMAN, Aflatoxin B1 aldehyde reductase member 3",O95154,Non-IDG Family Targets,,
+ALDH1A1,ALDH1A1,"AL1A1_HUMAN, Aldehyde dehydrogenase 1A1",P00352,Non-IDG Family Targets,,CHEMBL3577
+AOX1,Aldehyde oxidase,"AOXA_HUMAN, Aldehyde oxidase",Q06278,Non-IDG Family Targets,,CHEMBL3257
+CACNA1C,CaV1.2,Voltage-dependent L-type calcium channel subunit alpha-1C,Q13936,Ion channel,,CHEMBL1940
+CACNB1,Calcium L-channel beta-1 subunit,"Ca subunit, Voltage-dependent L-type calcium channel subunit beta-1",Q02641,Ion channel,,CHEMBL3988638
+CHRM1,Muscarinic receptor M1,"ACM1_HUMAN, Muscarinic acetylcholine receptor M1",P11229,GPCR,,CHEMBL216
+CHRM2,Muscarinic receptor M2,"ACM2_HUMAN, Muscarinic acetylcholine receptor M2",P08172,GPCR,,CHEMBL211
+CHRM3,Muscarinic receptor M3,"ACM3_HUMAN, Muscarinic acetylcholine receptor M3",P20309,GPCR,,CHEMBL245
+CHRNA10,nicotinic nAChR,ACH10_HUMAN Neuronal acetylcholine receptor subunit alpha-10,Q9GZZ6,Ion channel,,CHEMBL2109238
+CHRNA3,nicotinic nAChR,ACHA3_HUMAN Neuronal acetylcholine receptor subunit alpha-3,P32297,Ion channel,,CHEMBL3068
+CHRNA5,nicotinic nAChR,ACHA5_HUMAN Neuronal acetylcholine receptor subunit alpha-5,P30532,Ion channel,,CHEMBL3137272
+CHRNA7,nicotinic nAChR,ACHA7_HUMAN Neuronal acetylcholine receptor subunit alpha-7,P36544,Ion channel,,CHEMBL2492
+CHRNA9,nicotinic nAChR,ACHA9_HUMAN Neuronal acetylcholine receptor subunit alpha-9,Q9UGM1,Ion channel,,CHEMBL2184
+CNR1,Cannabinoid receptor CB1,"CNR1_HUMAN, Cannabinoid receptor 1",P21554,GPCR,,CHEMBL218
+CNR2,Cannabinoid receptor CB2,"CNR2_HUMAN, Cannabinoid receptor 2",P34972,GPCR,,CHEMBL253
+CYP1A2,CYP1A2,"CP1A2_HUMAN, Cytochrome P450 1A2",P05177,Non-IDG Family Targets,Enzyme,CHEMBL3356
+CYP2B6,CYP2B6,"CP2B6_HUMAN, Cytochrome P450 2B6",P20813,Non-IDG Family Targets,Enzyme,CHEMBL4729
+CYP2C19,CYP2C19,"CP2C19_HUMAN, Cytochrome P450 2C19",P33261,Non-IDG Family Targets,Enzyme,CHEMBL3622
+CYP2C9,CYP2C9,"CP2C9_HUMAN, Cytochrome P450 2C9",P11712,Non-IDG Family Targets,Enzyme,CHEMBL3397
+CYP2D6,CYP2D6,"CP2D6_HUMAN, Cytochrome P450 2D6",P10635,Non-IDG Family Targets,Enzyme,CHEMBL289
+CYP3A4,CYP3A4,"CP3A4_HUMAN, Cytochrome P450 3A4",P08684,Non-IDG Family Targets,Enzyme,CHEMBL340
+DIDO1,DIDO1,"DIDO1_HUMAN, Death-inducer obliterator 1",Q9BTC0,Non-IDG Family Targets,Transcription regulator,
+FMO1,FMO1,"FMO1_HUMAN, Flavin-containing monooxygenase 1",Q01740,Non-IDG Family Targets,Enzyme,CHEMBL3430872
+GABRA1,GABA-A,Gamma-aminobutyric acid receptor subunit alpha-1,P14867,Ion channel,,CHEMBL1962
+GSTA1,GSTA1,"GSTA1_HUMAN, Glutathione S-transferase A1",P08263,Non-IDG Family Targets,Enzyme,CHEMBL3409
+HRH1,Histamine H1,"HRH1_HUMAN, Histamine H1 receptor",P35367,GPCR,,CHEMBL231
+HSD11B1,HSD11B1,"DHI1_HUMAN, 11-beta-hydroxysteroid dehydrogenase 1",P28845,Non-IDG Family Targets,Enzyme,CHEMBL4235
+HTR2B,HTR2B,"5HT2B_HUMAN, 5-hydroxytryptamine receptor 2B",P41595,GPCR,,CHEMBL1833
+KCNH2,HERG (Kv11.1),"KCNH2_HUMAN, Potassium voltage-gated channel subfamily H member 2",Q12809,Ion channel,,CHEMBL240
+MAOA,Monoamine oxidase A,"AOFA_HUMAN, Amine oxidase [flavin-containing] A",P21397,Non-IDG Family Targets,Enzyme,CHEMBL1951
+MAOB,Monoamine oxidase B,"AOFB_HUMAN, Amine oxidase [flavin-containing] B",P27338,Non-IDG Family Targets,Enzyme,CHEMBL2039
+NAT2,NAT,"NAT2_HUMAN, N-acetyltransferase 2",P11245,Non-IDG Family Targets,Enzyme,CHEMBL2194
+NR1I2,PXR,"NR1I2_HUMAN, Nuclear receptor subfamily 1 group I member 2",O75469,Nuclear receptor,,CHEMBL3401
+NR1I3,CAR,"NR1I3_HUMAN, Nuclear receptor subfamily 1 group I member 3",Q14994,Nuclear receptor,,CHEMBL5503
+ORM1,Alpha1-acid glycoprotein,"A1AG1_HUMAN, Alpha-1-acid glycoprotein 1",P02763,Non-IDG Family Targets,Plasma,CHEMBL4285
+OXA1L,OXA1L,"OXA1L_HUMAN, Mitochondrial inner membrane protein OXA1L",Q15070,Non-IDG Family Targets,Membrane protein,
+PDE3A,Phosphodiesterase 3A,"PDE3A_HUMAN, cGMP-inhibited 3',5'-cyclic phosphodiesterase A",Q14432,GPCR,,CHEMBL241
+SCN5A,NaV1.5,"SCN5A_HUMAN, Sodium channel protein type 5 subunit alpha",Q14524,Ion channel,,CHEMBL1980
+SLC6A2,NET noradrenaline transporter,"SC6A2_HUMAN, Sodium-dependent noradrenaline transporter",P23975,Non-IDG Family Targets,Transporter,CHEMBL222
+SLC6A3,SLC6A3,"DAT1, SC6A3_HUMAN, Sodium-dependent dopamine transporter",Q01959,Non-IDG Family Targets,Transporter,CHEMBL238
+SLC6A4,SERT,"SC6A4_HUMAN, Sodium-dependent serotonin transporter",P31645,Non-IDG Family Targets,Transporter,CHEMBL228
+SLCO1B1,OATP1B1,"Solute carrier organic anion transporter family member 1B1, Liver-specific organic anion transporter 1, LST-1, LST1",Q9Y6L6,Non-IDG Family Targets,Transporter,CHEMBL1697668
+SLCO1B3,OATP1B3,Solute carrier organic anion transporter family member 1B3,Q9NPD5,Non-IDG Family Targets,Transporter,CHEMBL1743121
+SLCO2B1,OATP2B1,"Solute carrier organic anion transporter family member 2B1, KIAA0880",O94956,Non-IDG Family Targets,Transporter,CHEMBL1743124
+SMPDL3A,SMPDL3A,"ASM3A_human, cyclic GMP-=AMO phosphodiesterase",Q92484,Non-IDG Family Targets,Enzyme,
+SULT1A1,SULT1A1,"ST1A1_HUMAN, Sulfotransferase 1A1",P50225,Non-IDG Family Targets,Enzyme,CHEMBL1743291
+XDH,Xanthine oxidase,"XDH_HUMAN, Xanthine dehydrogenase/oxidase",P47989,Non-IDG Family Targets,Enzyme,CHEMBL1929

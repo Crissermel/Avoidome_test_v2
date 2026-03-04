@@ -45,8 +45,8 @@ def load_config(config_path: Path = None) -> dict:
     
     # Convert relative paths in config to absolute paths (relative to config file location)
     config_dir = config_path.parent
-    path_keys = ['avoidome_file', 'similarity_file', 'sequence_file', 'activity_thresholds_file', 
-                 'output_dir', 'papyrus_cache_dir']
+    path_keys = ['avoidome_file', 'similarity_file', 'sequence_file', 'activity_thresholds_file',
+                 'protein_family_bioactivity_bin_file', 'output_dir', 'papyrus_cache_dir']
     for key in path_keys:
         if key in config and config[key]:
             # If path is relative, make it relative to config file directory

@@ -645,6 +645,13 @@ def main():
     step_output_dir = base_dir / '05_model_training'
     config['output_dir'] = str(step_output_dir.resolve())
     step_output_dir.mkdir(parents=True, exist_ok=True)
+    # Add file handler so logs go to both stderr and a log file in the step output directory
+    log_file = step_output_dir / "run.log"
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s: %(message)s", datefmt="%H:%M:%S"))
+    file_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(file_handler)
+    logger.info(f"Logging to {log_file}")
     logger.info(f"Output directory: {step_output_dir}")
     
     # Validate required configuration
