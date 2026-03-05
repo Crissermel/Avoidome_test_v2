@@ -33,6 +33,7 @@ import tempfile
 import shutil
 import re
 import argparse
+import yaml
 
 # Import papyrus-scripts
 from papyrus_scripts import PapyrusDataset
@@ -539,9 +540,27 @@ class ProteinSimilaritySearchPapyrus:
             hits = self.query_blast_database(avoidome_id, avoidome_seq, min_identity=min_threshold)
             
             similar_proteins[avoidome_id] = []
+            id_mapping = self._load_id_mapping()
             
             for hit in hits:
                 papyrus_id = hit['papyrus_id']
+                # Resolve to base UniProt ID for comparison (exclude query self-hit)
+                if isinstance(papyrus_id, str) and papyrus_id.endswith('_WT'):
+                    hit_uniprot = papyrus_id[:-3]
+                elif isinstance(papyrus_id, str) and papyrus_id.startswith('unknown_'):
+                    try:
+                        blast_idx = int(papyrus_id.replace('unknown_', ''))
+                        mapped = id_mapping.get(blast_idx)
+                        hit_uniprot = mapped[:-3] if mapped and mapped.endswith('_WT') else (mapped or papyrus_id)
+                    except ValueError:
+                        hit_uniprot = papyrus_id
+                elif isinstance(papyrus_id, str) and papyrus_id.isdigit():
+                    mapped = id_mapping.get(int(papyrus_id))
+                    hit_uniprot = mapped[:-3] if mapped and mapped.endswith('_WT') else (mapped or papyrus_id)
+                else:
+                    hit_uniprot = papyrus_id
+                if hit_uniprot == avoidome_id:
+                    continue  # Exclude the query protein itself (e.g. 100% self-hit)
                 
                 # Get metadata from lookup
                 metadata = papyrus_metadata.get(papyrus_id, {
@@ -578,73 +597,46 @@ class ProteinSimilaritySearchPapyrus:
         
         summary_data = []
         
+        id_mapping = self._load_id_mapping()
+        
         for avoidome_id, similar_list in similar_proteins.items():
             for threshold_name, threshold_value in self.thresholds.items():
-                # Count proteins above threshold
+                # Count proteins above threshold (excluding query self-hit)
                 above_threshold = [p for p in similar_list if p['similarity'] >= threshold_value]
                 
-                # Get top 10 most similar
-                top_similar = sorted(above_threshold, key=lambda x: x['similarity'], reverse=True)#[:10]
-                # Extract UniProt ID from target_id (remove _WT suffix if present)
-                # Load ID mapping for fallback lookup if needed
-                id_mapping = self._load_id_mapping()
-                
-                similar_names = []
-                for p in top_similar:
-                    papyrus_id = p['papyrus_id']
-                    uniprot_id = None
-                    
-                    # If it's in format "P05177_WT", extract just "P05177"
+                def _resolve_uniprot(papyrus_id):
                     if papyrus_id.endswith('_WT'):
-                        uniprot_id = papyrus_id[:-3]  # Remove _WT suffix
-                    # If it's already a UniProt ID format (P/Q/O followed by 5 alphanumeric)
-                    elif re.match(r'^[OPQ][0-9A-Z]{5}$', papyrus_id):
-                        uniprot_id = papyrus_id
-                    # If it's numeric (mapping failed earlier), try to look it up now
-                    elif papyrus_id.isdigit():
-                        blast_idx = int(papyrus_id)
-                        mapped_id = id_mapping.get(blast_idx)
-                        if mapped_id:
-                            # Remove _WT suffix if present
-                            if mapped_id.endswith('_WT'):
-                                uniprot_id = mapped_id[:-3]
-                            else:
-                                uniprot_id = mapped_id
-                        else:
-                            logger.warning(f"Failed to map BLAST index {blast_idx} to protein ID")
-                            uniprot_id = papyrus_id  # Keep numeric as fallback
-                    elif papyrus_id.startswith('unknown_'):
-                        # Extract the index from "unknown_X"
+                        return papyrus_id[:-3]
+                    if re.match(r'^[OPQ][0-9A-Z]{5}$', papyrus_id):
+                        return papyrus_id
+                    if papyrus_id.isdigit():
+                        mapped_id = id_mapping.get(int(papyrus_id))
+                        return (mapped_id[:-3] if mapped_id and mapped_id.endswith('_WT') else mapped_id) or papyrus_id
+                    if papyrus_id.startswith('unknown_'):
                         try:
                             blast_idx = int(papyrus_id.replace('unknown_', ''))
                             mapped_id = id_mapping.get(blast_idx)
-                            if mapped_id:
-                                if mapped_id.endswith('_WT'):
-                                    uniprot_id = mapped_id[:-3]
-                                else:
-                                    uniprot_id = mapped_id
-                            else:
-                                logger.warning(f"Failed to map BLAST index {blast_idx}")
-                                uniprot_id = papyrus_id
+                            return (mapped_id[:-3] if mapped_id and mapped_id.endswith('_WT') else mapped_id) or papyrus_id
                         except ValueError:
-                            uniprot_id = papyrus_id
-                    else:
-                        # Try to extract UniProt ID from the string
-                        uniprot_match = re.search(r'([OPQ][0-9A-Z]{5})', papyrus_id)
-                        if uniprot_match:
-                            uniprot_id = uniprot_match.group(1)
-                        else:
-                            # Last resort: use as is
-                            uniprot_id = papyrus_id
-                    
+                            return papyrus_id
+                    uniprot_match = re.search(r'([OPQ][0-9A-Z]{5})', papyrus_id)
+                    return uniprot_match.group(1) if uniprot_match else papyrus_id
+                
+                # Exclude query protein from similar list (do not count self-hit)
+                above_threshold_excl_self = [p for p in above_threshold if _resolve_uniprot(p['papyrus_id']) != avoidome_id]
+                top_similar = sorted(above_threshold_excl_self, key=lambda x: x['similarity'], reverse=True)
+                
+                similar_names = []
+                for p in top_similar:
+                    uniprot_id = _resolve_uniprot(p['papyrus_id'])
                     similar_names.append(f"{uniprot_id} ({p['similarity']:.1f}%)")
                 
                 summary_data.append({
                     'query_protein': avoidome_id,
                     'threshold': threshold_name,
                     'threshold_value': threshold_value,
-                    'num_similar_proteins': len(above_threshold),
-                    'max_similarity': max([p['similarity'] for p in above_threshold]) if above_threshold else 0,
+                    'num_similar_proteins': len(above_threshold_excl_self),
+                    'max_similarity': max([p['similarity'] for p in above_threshold_excl_self]) if above_threshold_excl_self else 0,
                     'similar_proteins': ', '.join(similar_names)
                 })
         
@@ -745,46 +737,75 @@ class ProteinSimilaritySearchPapyrus:
             'summary_df': summary_df
         }
 
+def load_config(config_path: str) -> dict:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+
+
 def main():
     """Main function to run protein similarity search"""
     
-    # Parse command line arguments
+    # Optional: config path and papyrus version
     parser = argparse.ArgumentParser(description='AQSE Workflow - Step 2: Protein Similarity Search')
-    parser.add_argument('--input-dir', type=str,
-                       default=None,
-                       help='Directory with prepared FASTA files. If not provided, uses script directory.')
-    parser.add_argument('--output-dir', type=str,
-                       default=None,
-                       help='Output directory for similarity search results. If not provided, uses script_dir/02_similarity_search.')
-    parser.add_argument('--papyrus-version', type=str,
-                       default='05.7',
-                       help='Papyrus dataset version to use (default: 05.7)')
+    parser.add_argument('--config', type=str, default=None,
+                        help='Path to config.yaml. If not provided, uses CONFIG_FILE env or project root config.yaml.')
+    parser.add_argument('--papyrus-version', type=str, default='05.7',
+                        help='Papyrus dataset version to use (default: 05.7)')
     args = parser.parse_args()
     
     # Get project root directory (parent of scripts directory)
     script_dir = Path(__file__).parent.absolute()
     project_root = script_dir.parent.absolute()
     
-    # Set up paths - use command line args, environment variables, or defaults
-    if args.input_dir:
-        input_dir = Path(args.input_dir).expanduser().resolve()
-    elif os.getenv('INPUT_DIR'):
-        input_dir = Path(os.getenv('INPUT_DIR')).expanduser().resolve()
+    # Resolve config file path
+    if args.config:
+        config_path = Path(args.config).expanduser().resolve()
+    elif os.getenv('CONFIG_FILE'):
+        config_path = Path(os.getenv('CONFIG_FILE')).expanduser().resolve()
     else:
-        # Default: use 01_input_preparation directory (where fasta_files should be from Step 1)
-        input_dir = project_root / "01_input_preparation"
+        config_path = project_root / "config.yaml"
     
-    if args.output_dir:
-        output_dir = Path(args.output_dir).expanduser().resolve()
-    elif os.getenv('OUTPUT_DIR'):
-        output_dir = Path(os.getenv('OUTPUT_DIR')).expanduser().resolve()
-    else:
-        # Default: create 02_similarity_search in project root
-        output_dir = project_root / "02_similarity_search"
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    
+    logger.info(f"Using config file: {config_path}")
+    config = load_config(str(config_path))
+    config_dir = config_path.parent
+    
+    # Derive input_dir (Step 1 output) and output_dir (Step 2 output) from config paths
+    sequence_file = config.get('sequence_file')
+    similarity_file = config.get('similarity_file')
+    if not sequence_file:
+        raise ValueError("No 'sequence_file' found in config.yaml (points to Step 1 output).")
+    if not similarity_file:
+        raise ValueError("No 'similarity_file' found in config.yaml (points to Step 2 output).")
+    
+    def resolve_path(p: str) -> Path:
+        path = Path(p)
+        if not path.is_absolute():
+            path = (config_dir / p).resolve()
+        else:
+            path = path.expanduser().resolve()
+        return path
+    
+    sequence_path = resolve_path(sequence_file)
+    similarity_path = resolve_path(similarity_file)
+    input_dir = sequence_path.parent   # e.g. 01_input_preparation
+    output_dir = similarity_path.parent  # e.g. 02_similarity_search
     
     # Validate input directory exists
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory not found: {input_dir}")
+    
+    # Create output directory and add file handler for logs
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_file = output_dir / "run.log"
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    file_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(file_handler)
+    logger.info(f"Logging to {log_file}")
     
     # Check for fasta_files directory
     fasta_dir = input_dir / "fasta_files"

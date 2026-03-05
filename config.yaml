@@ -1,6 +1,7 @@
 # AQSE Configuration
 # All paths are absolute paths for clarity and consistency
-avoidome_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/data/avoidome_prot_list.csv"
+avoidome_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/data/input_clean.csv"
+protein_family_bioactivity_bin_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/data/protein_family_bioactivity_bin.csv"
 similarity_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/02_similarity_search/similarity_search_summary.csv"
 sequence_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/01_input_preparation/avoidome_sequences.csv"
 activity_thresholds_file: "/home/serramelendezcsm/RA/Avoidome/AQSE_v3/04_bioactivity_threshold_optimization/class_imbalance_summary_optimized.csv"

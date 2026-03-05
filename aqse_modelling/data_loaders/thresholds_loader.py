@@ -37,13 +37,13 @@ class ActivityThresholdsLoader:
             rename_dict = {col: col.strip() for col in df.columns}
             df = df.rename(rename_dict)
             
-            # Use optimized cutoffs if available, otherwise fall back to original
+            # Use optimized cutoffs from Step 04 (class_imbalance_summary_optimized.csv) when present
             if 'optimized_cutoff_high' in df.columns:
                 df = df.with_columns(pl.col('optimized_cutoff_high').alias('cutoff_high'))
-                self.logger.info("Using optimized high cutoffs")
+                self.logger.info("Using optimized high cutoffs from activity_thresholds_file")
             if 'optimized_cutoff_medium' in df.columns:
                 df = df.with_columns(pl.col('optimized_cutoff_medium').alias('cutoff_medium'))
-                self.logger.info("Using optimized medium cutoffs")
+                self.logger.info("Using optimized medium cutoffs from activity_thresholds_file")
             
             # Ensure use_2class column exists (for backward compatibility)
             if 'use_2class' not in df.columns:

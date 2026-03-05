@@ -71,21 +71,22 @@ def load_config(config_path: str) -> dict:
 
 def get_avoidome_proteins(avoidome_file: str) -> Set[str]:
     """
-    Load avoidome protein UniProt IDs from the avoidome file
+    Load avoidome protein UniProt IDs from input_clean.csv.
     
     Args:
-        avoidome_file: Path to avoidome protein list CSV
+        avoidome_file: Path to input_clean.csv
         
     Returns:
         Set of UniProt IDs
     """
     logger.info(f"Loading avoidome proteins from {avoidome_file}")
     df = pl.read_csv(avoidome_file)
-    
-    # Extract UniProt IDs from the 'UniProt ID' column
-    uniprot_ids = set(df['UniProt ID'].drop_nulls().unique().to_list())
+    df = df.rename({col: col.strip() for col in df.columns})
+    if 'uniprot_id' not in df.columns:
+        raise ValueError(f"input_clean.csv must contain 'uniprot_id' column. Found: {list(df.columns)}")
+    uniprot_ids = set(df['uniprot_id'].drop_nulls().cast(pl.Utf8).unique().to_list())
+    uniprot_ids = {u for u in uniprot_ids if u and u != 'no info'}
     logger.info(f"Found {len(uniprot_ids)} unique avoidome proteins")
-    
     return uniprot_ids
 
 
@@ -294,6 +295,13 @@ def main():
     
     # Create cache directory if it doesn't exist
     cache_dir.mkdir(parents=True, exist_ok=True)
+    # Add file handler so logs go to both stderr and a log file in the step output directory
+    log_file = cache_dir / "run.log"
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    file_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(file_handler)
+    logger.info(f"Logging to {log_file}")
     logger.info(f"Cache directory: {cache_dir}")
     
     # Load avoidome proteins

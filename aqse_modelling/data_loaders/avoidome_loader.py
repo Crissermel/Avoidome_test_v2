@@ -19,7 +19,10 @@ class AvoidomeDataLoader:
 
     
     def load_avoidome_targets(self) -> List[Dict[str, str]]:
-        """Load avoidome protein targets"""
+        """Load avoidome protein targets from input_clean.csv.
+        Expected columns: uniprot_id, gene_name or protein_name, ChEMBL_target (optional).
+        Returned dicts have keys 'UniProt ID' and 'Name_2' for downstream compatibility.
+        """
         self.logger.info("Loading avoidome protein targets...")
         filepath = self.config.get("avoidome_file")
 
@@ -27,33 +30,28 @@ class AvoidomeDataLoader:
             raise ValueError("Missing 'avoidome_file' in configuration.")
 
         df = pl.read_csv(filepath)
-
-        # Clean columns - remove Unnamed columns and strip whitespace
         df = df.select([col for col in df.columns if not col.startswith('Unnamed')])
-        # Rename columns to strip whitespace
         rename_dict = {col: col.strip() for col in df.columns}
         df = df.rename(rename_dict)
-        
-        expected_cols = ["Name_2", "UniProt ID", "ChEMBL_target"]
-        df = df.select(expected_cols)
 
-        # Convert empty strings to null and drop missing
-        df = df.with_columns([
-            pl.when(pl.col(col) == "").then(None).otherwise(pl.col(col)).alias(col)
-            for col in ["UniProt ID", "ChEMBL_target"]
-        ])
-        before_count = len(df)
-        df = df.drop_nulls(subset=["UniProt ID", "ChEMBL_target"])
-        after_count = len(df)
-        removed = before_count - after_count
-
-        if removed > 0:
-            self.logger.warning(f"Removed {removed} proteins due to missing UniProt ID or ChEMBL target.")
-        else:
-            self.logger.info("No proteins removed due to missing identifiers.")
-
-        self.logger.info(f"Loaded {after_count} avoidome targets from {filepath}")
-        return df.to_dicts()
+        if "uniprot_id" not in df.columns:
+            raise ValueError("Avoidome file (input_clean.csv) must have 'uniprot_id' column.")
+        name_col = "gene_name" if "gene_name" in df.columns else "protein_name"
+        cols = ["uniprot_id", name_col]
+        if "ChEMBL_target" in df.columns:
+            cols.append("ChEMBL_target")
+        df = df.select([c for c in cols if c in df.columns])
+        df = df.with_columns(pl.when(pl.col("uniprot_id") == "").then(None).otherwise(pl.col("uniprot_id")).alias("uniprot_id"))
+        df = df.drop_nulls(subset=["uniprot_id"])
+        result = []
+        for row in df.iter_rows(named=True):
+            result.append({
+                "UniProt ID": row["uniprot_id"],
+                "Name_2": row.get(name_col, row["uniprot_id"]),
+                "ChEMBL_target": row.get("ChEMBL_target", ""),
+            })
+        self.logger.info(f"Loaded {len(result)} avoidome targets from {filepath}")
+        return result
 
 
     def load_avoidome_thresholds(self) -> Dict[str, Dict[str, float]]:

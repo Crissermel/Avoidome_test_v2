@@ -160,29 +160,23 @@ def load_papyrus_data() -> pl.DataFrame:
 
 def get_avoidome_uniprot_ids(avoidome_file: str) -> Set[str]:
     """
-    Get list of UniProt IDs from avoidome file.
+    Get list of UniProt IDs from input_clean.csv.
     
     Args:
-        avoidome_file: Path to avoidome protein list CSV
+        avoidome_file: Path to input_clean.csv
         
     Returns:
         Set of UniProt IDs
     """
     logger.info(f"Loading avoidome protein list from {avoidome_file}")
     df = pl.read_csv(avoidome_file)
-    
-    # Clean columns - remove Unnamed columns and strip whitespace
     df = df.select([col for col in df.columns if not col.startswith('Unnamed')])
     rename_dict = {col: col.strip() for col in df.columns}
     df = df.rename(rename_dict)
-    
-    # Get UniProt IDs
-    uniprot_ids = set()
-    if 'UniProt ID' in df.columns:
-        uniprot_ids = set(df['UniProt ID'].drop_nulls().cast(pl.Utf8).to_list())
-    elif 'uniprot_id' in df.columns:
-        uniprot_ids = set(df['uniprot_id'].drop_nulls().cast(pl.Utf8).to_list())
-    
+    if 'uniprot_id' not in df.columns:
+        raise ValueError("input_clean.csv must have 'uniprot_id' column.")
+    uniprot_ids = set(df['uniprot_id'].drop_nulls().cast(pl.Utf8).to_list())
+    uniprot_ids = {u for u in uniprot_ids if u and u != 'no info'}
     logger.info(f"Found {len(uniprot_ids)} unique UniProt IDs in avoidome list")
     return uniprot_ids
 

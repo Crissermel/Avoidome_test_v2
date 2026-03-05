@@ -7,7 +7,7 @@ It loads bioactivity data from Papyrus++ and assigns classes (Low, Medium, High)
 cutoffs defined in the cutoff table.
 
 The script performs the following analyses:
-1. Loads protein list and cutoff thresholds from avoidome_cutoff_table.csv
+1. Builds per-protein cutoff table from input_clean.csv + protein_family_bioactivity_bin.csv
 2. Loads similarity search results to get similar proteins for each target
 3. Loads bioactivity data from Papyrus++ for all proteins (target + similar)
 4. Assigns class labels based on pchembl_value_Mean and protein-specific cutoffs
@@ -42,27 +42,52 @@ logger = logging.getLogger(__name__)
 
 
 # Analyze all proteins from the cutoff table (no filtering)
-# Previously restricted to ALLOWED_PROTEINS, now includes all proteins
 
 
-def load_cutoff_table(cutoff_table_path: str) -> pl.DataFrame:
+
+def build_cutoff_table_from_input_and_bin(
+    input_clean_path: str,
+    protein_family_bin_path: str,
+) -> pl.DataFrame:
     """
-    Load the cutoff table with protein thresholds
+    Build per-protein cutoff table by joining input_clean.csv with
+    protein_family_bioactivity_bin.csv on protein_family.
+    Proteins whose protein_family is not in the bin file are excluded.
     
-    Args:
-        cutoff_table_path: Path to the cutoff table CSV file
-        
+    input_clean must have: uniprot_id, gene_name or protein_name, protein_family.
+    Bin file must have: protein_family, bioactivity_high, bioactivity_medium.
+    
     Returns:
-        DataFrame with protein information and cutoffs
+        DataFrame with name2_entry, uniprot_id, protein_family, cutoff_high, cutoff_medium
     """
-    logger.info(f"Loading cutoff table from {cutoff_table_path}")
-    cutoff_df = pl.read_csv(cutoff_table_path)
-    
-    # Filter out proteins without uniprot_id
-    cutoff_df = cutoff_df.filter(pl.col('uniprot_id').is_not_null())
-    cutoff_df = cutoff_df.filter(pl.col('uniprot_id') != '')
-    
-    logger.info(f"Loaded {len(cutoff_df)} proteins from cutoff table")
+    logger.info(f"Building cutoff table from {input_clean_path} and {protein_family_bin_path}")
+    input_df = pl.read_csv(input_clean_path)
+    bin_df = pl.read_csv(protein_family_bin_path)
+    input_df = input_df.rename({c: c.strip() for c in input_df.columns})
+    bin_df = bin_df.rename({c: c.strip() for c in bin_df.columns})
+    if 'protein_family' not in bin_df.columns:
+        raise ValueError("protein_family_bioactivity_bin.csv must have 'protein_family' column.")
+    if 'bioactivity_high' not in bin_df.columns or 'bioactivity_medium' not in bin_df.columns:
+        raise ValueError("protein_family_bioactivity_bin.csv must have 'bioactivity_high' and 'bioactivity_medium' columns.")
+    bin_df = bin_df.select([
+        pl.col('protein_family'),
+        pl.col('bioactivity_high').alias('cutoff_high'),
+        pl.col('bioactivity_medium').alias('cutoff_medium'),
+    ])
+    if 'uniprot_id' not in input_df.columns:
+        raise ValueError("input_clean.csv must have 'uniprot_id' column.")
+    if 'protein_family' not in input_df.columns:
+        raise ValueError("input_clean.csv must have 'protein_family' column for joining with protein_family_bioactivity_bin.")
+    name_col = 'gene_name' if 'gene_name' in input_df.columns else 'protein_name'
+    input_df = input_df.select([
+        pl.col('uniprot_id'),
+        pl.col(name_col).alias('name2_entry'),
+        pl.col('protein_family'),
+    ])
+    input_df = input_df.drop_nulls(subset=['uniprot_id'])
+    input_df = input_df.filter(pl.col('uniprot_id').cast(pl.Utf8) != '')
+    cutoff_df = input_df.join(bin_df, on='protein_family', how='inner')
+    logger.info(f"Built cutoff table with {len(cutoff_df)} proteins (joined on protein_family)")
     return cutoff_df
 
 
@@ -74,7 +99,8 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
         similarity_file_path: Path to similarity_search_summary.csv
         
     Returns:
-        Dictionary mapping target uniprot_id to list of similar protein uniprot_ids
+        Dictionary mapping target uniprot_id to list of *other* similar protein uniprot_ids (query excluded in Step 02).
+        Caller must add the target when filtering data: [uniprot_id] + similar_proteins_dict.get(uniprot_id, []).
     """
     logger.info(f"Loading similarity summary from {similarity_file_path}")
     
@@ -82,7 +108,7 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
         similarity_df = pl.read_csv(similarity_file_path)
         
         # Dictionary to store similar proteins for each target
-        # Key: target uniprot_id, Value: list of similar protein uniprot_ids (including target)
+        # Key: target uniprot_id, Value: list of *other* similar protein uniprot_ids (query excluded in Step 02)
         similar_proteins_dict = {}
         
         for row in similarity_df.iter_rows(named=True):
@@ -92,7 +118,7 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
             
             # Use 'high' threshold similar proteins
             if threshold == 'high' and similar_proteins_str is not None:
-                # Extract protein IDs from string like "P05177 (100.0%), P04799 (75.1%)"
+                # Extract protein IDs from string like "P05177 (75.1%), P04799 (70.0%)" (query no longer included)
                 protein_ids = []
                 for protein_entry in similar_proteins_str.split(","):
                     # Extract protein ID (format: "P05177 (100.0%)" or "P20813_WT (100.0%)")
@@ -105,9 +131,9 @@ def load_similarity_summary(similarity_file_path: str) -> Dict[str, List[str]]:
                     if parts:  # Only add non-empty IDs
                         protein_ids.append(parts)
                 
-                # Store similar proteins (includes target protein itself)
+                # Store list of other similar proteins only (matches num_similar_proteins in summary)
                 similar_proteins_dict[query_protein] = protein_ids
-                logger.debug(f"  {query_protein}: {len(protein_ids)} similar proteins (including target)")
+                logger.debug(f"  {query_protein}: {len(protein_ids)} similar proteins (excluding target)")
         
         logger.info(f"Loaded similarity data for {len(similar_proteins_dict)} target proteins")
         return similar_proteins_dict
@@ -1033,39 +1059,37 @@ def main():
     else:
         similarity_file = str(Path(similarity_file).expanduser().resolve())
     
-    # Determine cutoff table path (assume it's in the same directory as avoidome_file)
     avoidome_file_path = Path(avoidome_file)
-    cutoff_table_path = avoidome_file_path.parent / 'avoidome_cutoff_table.csv'
+    bin_file = config.get('protein_family_bioactivity_bin_file')
+    if bin_file:
+        if not Path(bin_file).is_absolute():
+            bin_file = str((config_dir / bin_file).resolve())
+        else:
+            bin_file = str(Path(bin_file).expanduser().resolve())
+    if not bin_file:
+        bin_file = str(avoidome_file_path.parent / 'protein_family_bioactivity_bin.csv')
     
-    # If cutoff table doesn't exist in same directory, try data directory
-    if not cutoff_table_path.exists():
-        cutoff_table_path = avoidome_file_path.parent / 'data' / 'avoidome_cutoff_table.csv'
-    
-    # If still doesn't exist, try project root data directory
-    if not cutoff_table_path.exists():
-        cutoff_table_path = project_root / 'data' / 'avoidome_cutoff_table.csv'
-    
-    if not cutoff_table_path.exists():
-        logger.error(f"Cutoff table not found. Tried:")
-        logger.error(f"  - {avoidome_file_path.parent / 'avoidome_cutoff_table.csv'}")
-        logger.error(f"  - {avoidome_file_path.parent / 'data' / 'avoidome_cutoff_table.csv'}")
-        logger.error(f"  - {project_root / 'data' / 'avoidome_cutoff_table.csv'}")
+    if not Path(bin_file).exists():
+        logger.error(f"protein_family_bioactivity_bin file not found: {bin_file}. Set protein_family_bioactivity_bin_file in config.yaml.")
         return
+    cutoff_df = build_cutoff_table_from_input_and_bin(avoidome_file, bin_file)
     
     # Set output directory (use project root / 04_bioactivity_threshold_optimization)
     output_dir = project_root / '04_bioactivity_threshold_optimization'
     output_dir.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"Cutoff table: {cutoff_table_path}")
+    # Add file handler so logs go to both stderr and a log file in the step output directory
+    log_file = output_dir / "run.log"
+    file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+    file_handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(file_handler)
+    logger.info(f"Logging to {log_file}")
     logger.info(f"Similarity file: {similarity_file}")
     logger.info(f"Output directory: {output_dir}")
     
     logger.info("=" * 80)
     logger.info("Starting Class Imbalance Analysis")
     logger.info("=" * 80)
-    
-    # Step 1: Load cutoff table
-    cutoff_df = load_cutoff_table(str(cutoff_table_path))
     
     # Filter out proteins with insufficient data points for modeling (<30)
     proteins_to_exclude = ['AHR', 'AOX1', 'CHRNA3', 'GSTA1', 'SLCO1B1', 'SULT1A1', 'SLCO2B3']
@@ -1154,15 +1178,14 @@ def main():
         
         logger.info(f"\nProcessing {name2_entry} ({uniprot_id})...")
         
-        # Get similar proteins for this target
-        similar_proteins = similar_proteins_dict.get(uniprot_id, [])
+        # Get similar proteins: dict has only *other* proteins (query excluded in Step 02). Include target for filtering.
+        others = similar_proteins_dict.get(uniprot_id) or []
+        similar_proteins = [uniprot_id] + others  # target + similar others for Papyrus filter
         
-        if not similar_proteins:
-            # No similar proteins found, use target only
+        if not others:
             logger.info(f"  No similar proteins found, using target only")
-            similar_proteins = [uniprot_id]
         else:
-            logger.info(f"  Found {len(similar_proteins)} similar proteins (including target)")
+            logger.info(f"  Found {len(others)} similar proteins (target + similar)")
         
         # Filter bioactivity data for target + similar proteins
         protein_data = papyrus_df.filter(pl.col('accession').is_in(similar_proteins))
@@ -1192,7 +1215,7 @@ def main():
             'cutoff_medium': cutoff_medium,
             'class_counts': class_counts,
             'metrics': metrics,
-            'n_similar_proteins': len(similar_proteins) - 1  # Exclude target itself
+            'n_similar_proteins': len(others)  # Count of similar others (matches similarity_search_summary num_similar_proteins)
         })
         
         logger.info(f"  Class distribution: Low={class_counts['Low']}, "
@@ -1235,11 +1258,9 @@ def main():
         logger.info(f"\nOptimizing {name2_entry} ({uniprot_id})...")
         logger.info(f"  Original cutoffs: medium={original_cutoff_medium:.1f}, high={original_cutoff_high:.1f}")
         
-        # Get similar proteins for this target
-        similar_proteins = similar_proteins_dict.get(uniprot_id, [])
-        
-        if not similar_proteins:
-            similar_proteins = [uniprot_id]
+        # Get similar proteins: dict has only *other* proteins. Include target for filtering.
+        others = similar_proteins_dict.get(uniprot_id) or []
+        similar_proteins = [uniprot_id] + others  # target + similar others for Papyrus filter
         
         # Filter bioactivity data for target + similar proteins
         protein_data = papyrus_df.filter(pl.col('accession').is_in(similar_proteins))
@@ -1263,7 +1284,7 @@ def main():
                 'optimized_cutoff_medium': original_cutoff_medium,
                 'class_counts': class_counts,
                 'metrics': metrics,
-                'n_similar_proteins': len(similar_proteins) - 1,
+                'n_similar_proteins': len(others),
                 'original_imbalance_ratio': float('inf'),
                 'optimized_imbalance_ratio': float('inf'),
                 'use_2class': False,
@@ -1367,7 +1388,7 @@ def main():
             'optimized_cutoff_medium': final_medium,
             'class_counts': final_class_counts,
             'metrics': final_metrics,
-            'n_similar_proteins': len(similar_proteins) - 1,
+            'n_similar_proteins': len(others),
             'original_imbalance_ratio': original_ratio,
             'optimized_imbalance_ratio': final_ratio,
             'use_2class': use_2class,
